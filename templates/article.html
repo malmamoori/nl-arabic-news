@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ article.title }} | NL بالعربي</title>
+    {% include '_brand_head.html' %}
+    <script src="{{ url_for('static', filename='news.js') }}" defer></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
@@ -12,34 +14,58 @@
 <body>
     <header class="site-header">
         <div class="container header-inner">
-            <a class="logo" href="{{ url_for('home') }}"><span>NL</span> بالعربي</a>
+            {% include '_logo.html' %}
             <nav class="main-nav" aria-label="التصنيفات">
                 <a href="{{ url_for('home') }}">الرئيسية</a>
                 {% for slug, label in categories.items() %}<a class="{% if article.category == label %}active{% endif %}" href="{{ url_for('category', slug=slug) }}">{{ label }}</a>{% endfor %}
             </nav>
-            <div class="header-mark" aria-label="هولندا بالعربي">NL<span>/</span>26</div>
+            <div class="header-mark" aria-hidden="true">
+                <img src="{{ url_for('static', filename='brand/nl-bilarabi-icon.png') }}" alt="" width="40" height="40">
+            </div>
         </div>
     </header>
 
     <main class="container article-page">
         <a class="back-link" href="{{ url_for('home') }}">→ العودة إلى الأخبار</a>
         <article class="article-content" style="--accent: {{ article.accent }}">
-            <div class="article-meta"><span class="category">{{ article.category }}</span><span>{{ article.date }} · {{ article.read_time }} قراءة</span></div>
-            <h1>{{ article.title }}</h1>
-            <p class="article-lead">{{ article.summary }}</p>
+            <div class="article-meta">
+                <a class="source-badge" href="{{ article.link }}" target="_blank" rel="noopener noreferrer">
+                    <span>المصدر</span> <bdi>{{ article.source }}</bdi>
+                </a>
+                <span>{{ article.date }}</span>
+            </div>
+            <h1 dir="auto">{{ article.title }}</h1>
+            {% if article.translation_notice %}
+            <p class="translation-notice">{{ article.translation_notice }}</p>
+            {% endif %}
+            <p class="article-lead" dir="auto">{{ article.body }}</p>
+            {% if article.image %}
+            <div class="news-image article-image">
+                <img src="{{ article.image }}" alt="" width="960" height="540"
+                     decoding="async" referrerpolicy="no-referrer">
+            </div>
+            {% endif %}
             <div class="article-rule"></div>
-            <p>{{ article.body }}</p>
+            {% if article.summary_translation_failed %}
+            <details class="original-excerpt">
+                <summary>عرض الملخص بلغته الأصلية</summary>
+                <p dir="auto">{{ article.original_summary }}</p>
+            </details>
+            {% endif %}
+            <a class="article-source-link" href="{{ article.link }}" target="_blank" rel="noopener noreferrer">
+                اقرأ الخبر كاملًا على <bdi>{{ article.source }}</bdi> <span aria-hidden="true">↗</span>
+            </a>
             <p>احفظ هذه الصفحة للعودة إليها عند الحاجة، وشاركها مع من قد يستفيد منها. تابع دائمًا آخر المتطلبات والمواعيد عبر المصادر الرسمية.</p>
             <div class="article-signoff"><span>NL بالعربي</span><span>خبر واضح، حياة أسهل.</span></div>
         </article>
         {% if related %}
         <section class="related-section">
             <div class="section-heading"><h2>اقرأ أيضًا</h2></div>
-            <div class="related-grid">{% for item in related %}<a class="related-card" href="{{ url_for('article', article_id=item.id) }}"><span>{{ item.category }}</span><strong>{{ item.title }}</strong><b>←</b></a>{% endfor %}</div>
+            <div class="related-grid">{% for item in related %}<a class="related-card" href="{{ url_for('article', article_id=item.id) }}"><span><bdi>{{ item.source }}</bdi></span><strong dir="auto">{{ item.title }}</strong><b>←</b></a>{% endfor %}</div>
         </section>
         {% endif %}
     </main>
 
-    <footer class="site-footer"><div class="container footer-inner"><a class="logo" href="{{ url_for('home') }}"><span>NL</span> بالعربي</a><p>أخبار هولندا كما تهمك.</p><p class="footer-date">© 2026</p></div></footer>
+    <footer class="site-footer"><div class="container footer-inner">{% include '_logo.html' %}<p>أخبار هولندا كما تهمك.</p><p class="footer-date">© 2026</p></div></footer>
 </body>
 </html>

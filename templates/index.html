@@ -12,6 +12,9 @@
 
     <title>NL بالعربي</title>
 
+    {% include '_brand_head.html' %}
+    <script src="{{ url_for('static', filename='news.js') }}" defer></script>
+
     <link
         rel="preconnect"
         href="https://fonts.googleapis.com"
@@ -45,12 +48,7 @@
 
         <div class="container header-inner">
 
-            <a
-                class="logo"
-                href="{{ url_for('home') }}"
-            >
-                <span>NL</span> بالعربي
-            </a>
+            {% include '_logo.html' %}
 
 
             <nav
@@ -76,11 +74,8 @@
             </nav>
 
 
-            <div
-                class="header-mark"
-                aria-label="هولندا بالعربي"
-            >
-                NL<span>/</span>26
+            <div class="header-mark" aria-hidden="true">
+                <img src="{{ url_for('static', filename='brand/nl-bilarabi-icon.png') }}" alt="" width="40" height="40">
             </div>
 
         </div>
@@ -155,10 +150,6 @@
                     في هولندا.
                 </p>
 
-                <span class="ticker-arrow">
-                    ←
-                </span>
-
             </div>
 
         </div>
@@ -188,11 +179,33 @@
 
 
                 <span class="article-count">
-                    {{ news|length }} أخبار
+                    {{ news|length }} خبرًا
                 </span>
 
             </div>
 
+
+            {% if news_status %}
+            <p class="news-status" role="status">{{ news_status }}</p>
+            {% endif %}
+
+            <div class="news-tools">
+                <input
+                    type="text"
+                    id="newsSearch"
+                    placeholder="ابحث عن خبر..."
+                    aria-label="ابحث عن خبر"
+                >
+            </div>
+
+            <div class="source-filters" aria-label="فلترة حسب المصدر">
+                <button class="source-btn active" data-source="all" type="button">الكل</button>
+                <button class="source-btn" data-source="NL Times" type="button">NL Times</button>
+                <button class="source-btn" data-source="Rijksoverheid" type="button">Rijksoverheid</button>
+                <button class="source-btn" data-source="DutchNews" type="button">DutchNews</button>
+                <button class="source-btn" data-source="DW Germany" type="button">DW Germany</button>
+                <button class="source-btn" data-source="BBC Europe" type="button">BBC Europe</button>
+            </div>
 
             <div class="news-grid">
 
@@ -200,67 +213,45 @@
 
                 <article
                     class="news-card"
+                    data-source="{{ item.source }}"
                     style="--accent: {{ item.accent }}"
                 >
 
-                    <div class="card-topline">
-
-                        <span>
-                            هولندا
-                        </span>
-
-                        <span>
-                            {{ item.date }}
-                        </span>
-
+                    {% if item.image %}
+                    <div class="news-image card-image">
+                        <img src="{{ item.image }}" alt="" width="640" height="360"
+                             loading="lazy" decoding="async" referrerpolicy="no-referrer">
                     </div>
+                    {% else %}
+                    <div class="news-image news-image-fallback" aria-hidden="true">
+                        <img src="{{ url_for('static', filename='brand/nl-bilarabi-icon.png') }}" alt="" width="72" height="72">
+                        <span>{{ item.source }}</span>
+                    </div>
+                    {% endif %}
 
-
-                    <div class="card-number">
-
-                        {% if loop.index < 10 %}
-                            0{{ loop.index }}
-                        {% else %}
-                            {{ loop.index }}
+                    <div class="card-body">
+                        <div class="card-topline">
+                            <a class="source-badge" href="{{ item.link }}" target="_blank" rel="noopener noreferrer">
+                                <span>المصدر</span> <bdi>{{ item.source }}</bdi>
+                            </a>
+                            <span class="card-number" aria-hidden="true">{{ '%02d'|format(loop.index) }}</span>
+                        </div>
+                        <p class="card-date">{{ item.date }}</p>
+                        <h3 dir="auto">
+                            <a href="{{ url_for('article', article_id=item.id) }}">{{ item.title }}</a>
+                        </h3>
+                        {% if item.translation_notice %}
+                        <p class="translation-notice">{{ item.translation_notice }}</p>
                         {% endif %}
-
-                    </div>
-
-
-                    <h3>
-                        {{ item.title }}
-                    </h3>
-
-
-                    <p>
-                        {{ item.summary }}
-                    </p>
-
-
-                    <a
-                        href="{{ item.link }}"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                    >
-                        اقرأ الخبر الأصلي ←
-                    </a>
-
-
-                    <div class="card-footer">
-
-                        <span>
-                            {{ item.read_time }} قراءة
-                        </span>
-
-
-                        <a
-                            class="read-link"
-                            href="{{ url_for('article', article_id=item.id) }}"
-                        >
-                            اقرأ المزيد
-                            <b>←</b>
-                        </a>
-
+                        <p class="card-summary" dir="auto">{{ item.summary }}</p>
+                        <div class="card-footer">
+                            <a class="original-link" href="{{ item.link }}" target="_blank" rel="noopener noreferrer">
+                                الخبر الأصلي <span aria-hidden="true">↗</span>
+                            </a>
+                            <a class="read-link" href="{{ url_for('article', article_id=item.id) }}">
+                                اقرأ المزيد <b aria-hidden="true">←</b>
+                            </a>
+                        </div>
                     </div>
 
                 </article>
@@ -319,12 +310,7 @@
 
         <div class="container footer-inner">
 
-            <a
-                class="logo"
-                href="{{ url_for('home') }}"
-            >
-                <span>NL</span> بالعربي
-            </a>
+            {% include '_logo.html' %}
 
             <p>
                 أخبار هولندا كما تهمك.
@@ -339,6 +325,37 @@
     </footer>
 
 
+    <script>
+        const searchInput = document.getElementById("newsSearch");
+        const sourceButtons = document.querySelectorAll(".source-btn");
+        const newsCards = document.querySelectorAll(".news-card");
+
+        let activeSource = "all";
+
+        function filterNews() {
+            const searchValue = searchInput.value.toLowerCase();
+
+            newsCards.forEach(function (card) {
+                const text = card.innerText.toLowerCase();
+                const source = card.dataset.source;
+                const matchesSearch = text.includes(searchValue);
+                const matchesSource = activeSource === "all" || source === activeSource;
+
+                card.style.display = matchesSearch && matchesSource ? "" : "none";
+            });
+        }
+
+        searchInput.addEventListener("input", filterNews);
+
+        sourceButtons.forEach(function (button) {
+            button.addEventListener("click", function () {
+                sourceButtons.forEach(btn => btn.classList.remove("active"));
+                this.classList.add("active");
+                activeSource = this.dataset.source;
+                filterNews();
+            });
+        });
+    </script>
 </body>
 
 </html>

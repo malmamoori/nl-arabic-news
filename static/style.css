@@ -45,19 +45,27 @@ a {
 }
 
 .logo {
+    align-items: center;
+    border-radius: 4px;
     direction: ltr;
-    font-size: 21px;
-    font-weight: 700;
-    letter-spacing: -.5px;
-    white-space: nowrap;
+    display: inline-flex;
+    flex-shrink: 0;
+    line-height: 1;
 }
 
-.logo span {
-    color: var(--orange);
-    font-family: Georgia, serif;
-    font-size: 27px;
-    font-style: italic;
-    margin-left: 4px;
+.logo:focus-visible {
+    outline: 2px solid var(--orange);
+    outline-offset: 4px;
+}
+
+.brand-logo {
+    display: block;
+    height: auto;
+    width: 228px;
+}
+
+.site-footer .brand-logo {
+    filter: brightness(0) invert(1);
 }
 
 .main-nav {
@@ -90,16 +98,14 @@ a {
 }
 
 .header-mark {
-    color: var(--muted);
-    direction: ltr;
-    font-family: Georgia, serif;
-    font-size: 12px;
-    letter-spacing: 2px;
+    align-items: center;
+    display: flex;
+    flex-shrink: 0;
 }
 
-.header-mark span {
-    color: var(--orange);
-    margin: 0 4px;
+.header-mark img {
+    border-radius: 8px;
+    display: block;
 }
 
 .hero {
@@ -238,10 +244,52 @@ h3 {
     font-size: 12px;
 }
 
+.news-tools {
+    margin-bottom: 14px;
+}
+
+.news-tools input {
+    background: var(--card);
+    border: 1px solid #d7d7d7;
+    border-radius: 8px;
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 16px;
+    padding: 14px 16px;
+    width: 100%;
+}
+
+.news-tools input:focus {
+    border-color: var(--teal);
+    outline: 2px solid rgba(31, 104, 103, .15);
+}
+
+.source-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 25px;
+}
+
+.source-btn {
+    background: white;
+    border: 1px solid #d7d7d7;
+    border-radius: 999px;
+    cursor: pointer;
+    font-family: inherit;
+    padding: 10px 16px;
+}
+
+.source-btn.active {
+    background: #1f2926;
+    border-color: #1f2926;
+    color: white;
+}
+
 .news-grid {
     display: grid;
     gap: 18px;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .news-card {
@@ -250,13 +298,59 @@ h3 {
     display: flex;
     flex-direction: column;
     min-height: 342px;
-    padding: 23px 23px 20px;
+    overflow: hidden;
     transition: box-shadow .25s ease, transform .25s ease;
 }
 
 .news-card:hover {
     box-shadow: 0 14px 28px rgba(28, 37, 36, .08);
     transform: translateY(-4px);
+}
+
+.news-image {
+    aspect-ratio: 16 / 9;
+    background: var(--line);
+    overflow: hidden;
+}
+
+.news-image[hidden] {
+    display: none;
+}
+
+.news-image img {
+    display: block;
+    height: 100%;
+    object-fit: cover;
+    width: 100%;
+}
+
+.news-image-fallback {
+    align-items: center;
+    background: linear-gradient(135deg, var(--teal), #173f42);
+    color: #f8f6f0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    justify-content: center;
+}
+
+.news-image-fallback img {
+    height: 56px;
+    object-fit: contain;
+    opacity: .9;
+    width: 56px;
+}
+
+.news-image-fallback span {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.card-body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    padding: 20px 23px;
 }
 
 .card-topline,
@@ -269,34 +363,87 @@ h3 {
     justify-content: space-between;
 }
 
+.card-topline,
+.article-meta {
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.source-badge {
+    align-items: center;
+    background: #eaf0eb;
+    border-radius: 4px;
+    color: var(--teal);
+    display: inline-flex;
+    font-size: 12px;
+    gap: 7px;
+    padding: 4px 9px;
+}
+
+.source-badge bdi {
+    font-weight: 700;
+}
+
+.source-badge:hover,
+.original-link:hover {
+    text-decoration: underline;
+}
+
+.card-date {
+    color: var(--muted);
+    font-size: 11px;
+    margin-top: 10px;
+}
+
 .category {
     color: var(--accent, var(--orange));
     font-weight: 700;
 }
 
 .card-number {
-    color: var(--line);
+    color: var(--muted);
     direction: ltr;
     font-family: Georgia, serif;
-    font-size: 42px;
+    font-size: 16px;
     line-height: 1;
-    margin-top: 25px;
 }
 
 .news-card h3 {
     font-size: 20px;
     line-height: 1.55;
-    margin: 15px 0 9px;
+    margin: 13px 0 10px;
+    overflow-wrap: anywhere;
 }
 
 .news-card h3 a:hover {
     color: var(--teal);
 }
 
-.news-card > p {
+.card-summary {
     color: var(--muted);
     font-size: 13px;
     line-height: 1.8;
+    margin-bottom: 22px;
+    overflow-wrap: anywhere;
+}
+
+.translation-notice {
+    background: #f6eddf;
+    border-right: 2px solid var(--orange);
+    color: #795227;
+    font-size: 12px;
+    line-height: 1.7;
+    margin-bottom: 12px;
+    padding: 7px 10px;
+}
+
+.article-content > .translation-notice {
+    font-size: 14px;
+}
+
+.original-link {
+    color: var(--teal);
+    font-weight: 600;
 }
 
 .card-footer {
@@ -366,6 +513,42 @@ h3 {
     max-width: 680px;
 }
 
+.article-image {
+    margin-top: 30px;
+}
+
+.article-content h1,
+.article-content p,
+.related-card strong {
+    overflow-wrap: anywhere;
+}
+
+.original-excerpt {
+    background: var(--card);
+    border: 1px solid var(--line);
+    margin-bottom: 24px;
+    padding: 16px 20px;
+}
+
+.original-excerpt summary {
+    color: var(--teal);
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.original-excerpt p {
+    margin-top: 12px;
+}
+
+.article-source-link {
+    color: var(--teal);
+    display: inline-block;
+    font-weight: 700;
+    margin-bottom: 24px;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+}
+
 .article-rule {
     background: var(--accent);
     height: 4px;
@@ -430,6 +613,22 @@ h3 {
     margin-top: auto;
 }
 
+@media (min-width: 801px) and (max-width: 1020px) {
+    .news-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .news-card {
+        transition: none;
+    }
+
+    .news-card:hover {
+        transform: none;
+    }
+}
+
 @media (max-width: 800px) {
     .container {
         width: min(100% - 32px, 600px);
@@ -439,6 +638,10 @@ h3 {
         flex-wrap: wrap;
         min-height: 75px;
         padding: 13px 0;
+    }
+
+    .brand-logo {
+        width: 196px;
     }
 
     .main-nav {

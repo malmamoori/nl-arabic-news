@@ -2,4 +2,5 @@ Flask
 gunicorn
 feedparser
 beautifulsoup4
-deep-translator
+requests
+tzdata
