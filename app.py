@@ -1,4 +1,4 @@
-from flask import Flask, abort, render_template
+from flask import Flask, abort, make_response, render_template, request, url_for
 import feedparser
 
 from bs4 import BeautifulSoup
@@ -16,12 +16,35 @@ from urllib.parse import urlencode, urljoin, urlsplit
 import calendar
 import hashlib
 import json
+import os
 import re
 import textwrap
 import time
+import xml.etree.ElementTree as ET
 
 
 app = Flask(__name__)
+app.config["SITE_MANAGER"] = os.getenv("SITE_MANAGER", "فريق التحرير في NL بالعربي")
+app.config["CONTACT_EMAIL"] = os.getenv("CONTACT_EMAIL", "").strip()
+app.config["SITE_URL"] = os.getenv("SITE_URL", "https://nl-arabic-news.onrender.com").rstrip("/")
+
+
+def site_absolute_url(path="/"):
+    """Build canonical production URLs without depending on the current host."""
+    return f"{app.config['SITE_URL']}/{path.lstrip('/')}"
+
+
+def seo_context(title, description, canonical, page_type="website", image=None,
+                published_time=None, structured_data=None):
+    return {
+        "seo_title": title,
+        "seo_description": description,
+        "seo_canonical": canonical,
+        "seo_type": page_type,
+        "seo_image": image,
+        "seo_published_time": published_time,
+        "seo_jsonld": structured_data,
+    }
 
 
 def get_amsterdam_timezone():
@@ -68,7 +91,11 @@ RSS_SOURCES = [
     },
 ]
 
+# Keep a small, balanced archive in memory.  The home page deliberately shows
+# only one digest of nine stories; older loaded stories remain available in the
+# archive rather than making the front page overwhelming.
 NEWS_LIMIT = 15
+HOME_PAGE_SIZE = 9
 NEWS_CACHE_TTL = 15 * 60
 NEWS_RETRY_TTL = 60
 ARTICLE_CACHE_LIMIT = 150
@@ -235,6 +262,33 @@ def get_news_image(item):
             if url:
                 return url
     return None
+
+
+def get_alert_topics(*texts):
+    """Classify a story for the reader's optional, local alert preferences."""
+    haystack = " ".join(text for text in texts if isinstance(text, str)).casefold()
+    topics = {
+        "transport": (
+            "strike", "strikes", "rail", "train", "public transport", "ns ",
+            "ov ", "staking", "trein", "vervoer", "إضراب", "قطار", "النقل",
+        ),
+        "weather": (
+            "weather", "storm", "heavy rain", "wind warning", "code orange",
+            "code red", "weer", "storm", "waarschuwing", "طقس", "عاصفة",
+            "أمطار", "تحذير جوي",
+        ),
+        "residency": (
+            "residence", "residency", "asylum", "immigration", "inburgering",
+            "visa", "permit", "verblijf", "asiel", "immigratie", "إقامة",
+            "لجوء", "اندماج", "تأشيرة",
+        ),
+        "government": (
+            "government", "cabinet", "parliament", "ministry", "rijksoverheid",
+            "new law", "laws", "wet", "wetsvoorstel", "حكومة", "قانون",
+            "برلمان", "وزارة",
+        ),
+    }
+    return [topic for topic, keywords in topics.items() if any(word in haystack for word in keywords)]
 
 
 def select_news_entries(entries):
@@ -492,33 +546,142 @@ def build_news_item(item, index):
     )
     source_url = safe_news_url(item.get("source_url")) or "https://nltimes.nl/"
     link = safe_news_url(item.get("link"), source_url) or urljoin(source_url, "/")
+    published_datetime = get_news_datetime(item)
+    displayed_title = arabic_title or original_title
+    displayed_body = summary
+    source_language = language if language in ("en", "nl") else ""
+    has_original_variant = bool(source_language and (
+        original_title.casefold() != displayed_title.casefold()
+        or (clean_summary and clean_summary.casefold() != displayed_body.casefold())
+    ))
     return {
         "id": get_article_id(item),
         "category": item.get("category", "هولندا"),
         "slug": item.get("slug", "netherlands"),
-        "title": arabic_title or original_title,
+        "title": displayed_title,
         "original_title": original_title,
         "original_summary": clean_summary,
         "summary": textwrap.shorten(summary, width=320, placeholder="…"),
-        "body": summary,
+        "body": displayed_body,
         "translation_notice": translation_notice,
         "summary_translation_failed": summary_failed,
         "image": get_news_image(item),
         "link": link,
         "source": item.get("source_name", "NL Times"),
+        "source_language": source_language,
+        "has_original_variant": has_original_variant,
+        "alert_topics": get_alert_topics(
+            original_title, clean_summary, arabic_title or "", arabic_summary or ""
+        ),
         "date": format_date(item),
+        "date_published": published_datetime.isoformat() if published_datetime else None,
         "read_time": "3 دقائق",
         "accent": ("#d95d39", "#287c7b", "#bc7a2b", "#5c6f9d")[index % 4],
     }
 
 
+@app.route("/robots.txt")
+def robots():
+    response = make_response(
+        "User-agent: *\n"
+        "Allow: /\n"
+        f"Sitemap: {site_absolute_url('sitemap.xml')}\n"
+    )
+    response.headers["Content-Type"] = "text/plain; charset=utf-8"
+    response.headers["Cache-Control"] = "public, max-age=3600"
+    return response
+
+
+@app.route("/sitemap.xml")
+def sitemap():
+    namespace = "http://www.sitemaps.org/schemas/sitemap/0.9"
+    ET.register_namespace("", namespace)
+    urlset = ET.Element(f"{{{namespace}}}urlset")
+
+    def add_url(path, change_frequency="daily", priority="0.7", last_modified=None):
+        entry = ET.SubElement(urlset, f"{{{namespace}}}url")
+        ET.SubElement(entry, f"{{{namespace}}}loc").text = site_absolute_url(path)
+        if last_modified:
+            ET.SubElement(entry, f"{{{namespace}}}lastmod").text = last_modified
+        ET.SubElement(entry, f"{{{namespace}}}changefreq").text = change_frequency
+        ET.SubElement(entry, f"{{{namespace}}}priority").text = priority
+
+    add_url("/", "hourly", "1.0")
+    add_url("/archive", "daily", "0.7")
+    add_url("/transparency", "monthly", "0.4")
+    for slug in categories:
+        add_url(url_for("category", slug=slug), "hourly", "0.8")
+
+    for item in load_news():
+        add_url(
+            url_for("article", article_id=item["id"]),
+            "daily",
+            "0.8",
+            item.get("date_published"),
+        )
+
+    xml = ET.tostring(urlset, encoding="unicode")
+    response = make_response(f'<?xml version="1.0" encoding="UTF-8"?>\n{xml}')
+    response.headers["Content-Type"] = "application/xml; charset=utf-8"
+    response.headers["Cache-Control"] = "public, max-age=900"
+    return response
+
+
 @app.route("/")
 def home():
-
+    news = load_news()
     return render_template(
         "index.html",
-        news=load_news(),
+        news=news[:HOME_PAGE_SIZE],
+        total_news=len(news),
         news_status=_news_status,
+        **seo_context(
+            "أخبار هولندا بالعربية | NL بالعربي",
+            "أحدث أخبار هولندا وتحديثات عملية بالعربية للعرب المقيمين في هولندا.",
+            site_absolute_url(url_for("home")),
+        ),
+    )
+
+
+@app.route("/archive")
+def archive():
+    news = load_news()
+    try:
+        page = max(int(request.args.get("page", 1)), 1)
+    except (TypeError, ValueError):
+        page = 1
+
+    total_pages = max((len(news) + HOME_PAGE_SIZE - 1) // HOME_PAGE_SIZE, 1)
+    page = min(page, total_pages)
+    start = (page - 1) * HOME_PAGE_SIZE
+
+    return render_template(
+        "archive.html",
+        news=news[start:start + HOME_PAGE_SIZE],
+        news_status=_news_status,
+        current_page=page,
+        total_pages=total_pages,
+        total_news=len(news),
+        **seo_context(
+            "أرشيف أخبار هولندا بالعربية | NL بالعربي",
+            "أرشيف الأخبار الهولندية المترجمة إلى العربية مع روابط المصادر الأصلية.",
+            site_absolute_url(url_for("archive", page=page)) if page > 1 else site_absolute_url(url_for("archive")),
+        ),
+    )
+
+
+@app.route("/transparency")
+def transparency():
+    return render_template(
+        "transparency.html",
+        categories=categories,
+        site_manager=app.config["SITE_MANAGER"],
+        contact_email=app.config["CONTACT_EMAIL"],
+        **seo_context(
+            "الشفافية والتواصل | NL بالعربي",
+            "تعرف إلى مصادر NL بالعربي ومنهجية الترجمة والتواصل مع فريق التحرير.",
+            site_absolute_url(url_for("transparency")),
+        ),
     )
 
 
@@ -534,8 +697,14 @@ def category(slug):
 
     return render_template(
         "index.html",
-        news=category_news,
+        news=category_news[:HOME_PAGE_SIZE],
+        total_news=len(category_news),
         news_status=_news_status,
+        **seo_context(
+            f"أخبار {categories[slug]} بالعربية | NL بالعربي",
+            f"آخر أخبار {categories[slug]} وتحديثاتها بالعربية للعرب المقيمين في هولندا.",
+            site_absolute_url(url_for("category", slug=slug)),
+        ),
     )
 
 
@@ -564,11 +733,41 @@ def article(article_id):
         if item["id"] != article_id
     ][:2]
 
+    article_url = site_absolute_url(url_for("article", article_id=selected_article["id"]))
+    article_description = selected_article["summary"] or selected_article["title"]
+    structured_data = {
+        "@context": "https://schema.org",
+        "@type": "NewsArticle",
+        "headline": selected_article["title"],
+        "description": article_description,
+        "inLanguage": "ar",
+        "mainEntityOfPage": {"@type": "WebPage", "@id": article_url},
+        "author": {"@type": "Organization", "name": "NL بالعربي"},
+        "publisher": {"@type": "Organization", "name": "NL بالعربي"},
+        "datePublished": selected_article.get("date_published"),
+        "url": article_url,
+    }
+    if selected_article.get("image"):
+        structured_data["image"] = [selected_article["image"]]
+
     return render_template(
         "article.html",
         article=selected_article,
         related=related,
         categories=categories,
+        **seo_context(
+            f"{selected_article['title']} | NL بالعربي",
+            article_description,
+            article_url,
+            page_type="article",
+            image=selected_article.get("image"),
+            published_time=selected_article.get("date_published"),
+            structured_data=structured_data,
+        ),
+
+
+
+
     )
 
 

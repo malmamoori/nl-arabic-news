@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ article.title }} | NL بالعربي</title>
+    {% include '_seo_head.html' %}
     {% include '_brand_head.html' %}
     <script src="{{ url_for('static', filename='news.js') }}" defer></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,9 +15,11 @@
     <header class="site-header">
         <div class="container header-inner">
             {% include '_logo.html' %}
-            <nav class="main-nav" aria-label="التصنيفات">
+            <nav class="main-nav" aria-label="القائمة الرئيسية">
                 <a href="{{ url_for('home') }}">الرئيسية</a>
-                {% for slug, label in categories.items() %}<a class="{% if article.category == label %}active{% endif %}" href="{{ url_for('category', slug=slug) }}">{{ label }}</a>{% endfor %}
+                <a href="{{ url_for('archive') }}">الأرشيف</a>
+                <a href="{{ url_for('home') }}#alerts">التنبيهات</a>
+                <a href="{{ url_for('transparency') }}">الشفافية</a>
             </nav>
             <div class="header-mark" aria-hidden="true">
                 <img src="{{ url_for('static', filename='brand/nl-bilarabi-icon.png') }}" alt="" width="40" height="40">
@@ -27,18 +29,25 @@
 
     <main class="container article-page">
         <a class="back-link" href="{{ url_for('home') }}">→ العودة إلى الأخبار</a>
-        <article class="article-content" style="--accent: {{ article.accent }}">
+        <article class="article-content" data-article-id="{{ article.id }}" style="--accent: {{ article.accent }}">
             <div class="article-meta">
                 <a class="source-badge" href="{{ article.link }}" target="_blank" rel="noopener noreferrer">
                     <span>المصدر</span> <bdi>{{ article.source }}</bdi>
                 </a>
                 <span>{{ article.date }}</span>
             </div>
-            <h1 dir="auto">{{ article.title }}</h1>
+            <div class="article-language-controls"{% if not article.has_original_variant %} hidden{% endif %}>
+                <span>اللغة:</span>
+                <button class="language-button active" type="button" data-language="arabic">العربية</button>
+                <button class="language-button" type="button" data-language="original">{{ article.source_language|upper }} الأصلية</button>
+            </div>
+            <h1 class="language-content" data-language-content="arabic" dir="auto">{{ article.title }}</h1>
+            {% if article.has_original_variant %}<h1 class="language-content" data-language-content="original" dir="auto" hidden>{{ article.original_title }}</h1>{% endif %}
             {% if article.translation_notice %}
             <p class="translation-notice">{{ article.translation_notice }}</p>
             {% endif %}
-            <p class="article-lead" dir="auto">{{ article.body }}</p>
+            <p class="article-lead language-content" data-language-content="arabic" dir="auto">{{ article.body }}</p>
+            {% if article.has_original_variant %}<p class="article-lead language-content" data-language-content="original" dir="auto" hidden>{{ article.original_summary or 'لم يوفّر المصدر ملخصًا بلغته الأصلية.' }}</p>{% endif %}
             {% if article.image %}
             <div class="news-image article-image">
                 <img src="{{ article.image }}" alt="" width="960" height="540"
@@ -55,6 +64,10 @@
             <a class="article-source-link" href="{{ article.link }}" target="_blank" rel="noopener noreferrer">
                 اقرأ الخبر كاملًا على <bdi>{{ article.source }}</bdi> <span aria-hidden="true">↗</span>
             </a>
+            <div class="article-actions" aria-label="خيارات الخبر">
+                <button class="secondary-button save-button" type="button" data-save-article="{{ article.id }}" aria-pressed="false">حفظ الخبر</button>
+                <button class="secondary-button share-button" type="button" data-share-title="{{ article.title }}" data-share-url="{{ url_for('article', article_id=article.id, _external=True) }}">مشاركة الخبر</button>
+            </div>
             <p>احفظ هذه الصفحة للعودة إليها عند الحاجة، وشاركها مع من قد يستفيد منها. تابع دائمًا آخر المتطلبات والمواعيد عبر المصادر الرسمية.</p>
             <div class="article-signoff"><span>NL بالعربي</span><span>خبر واضح، حياة أسهل.</span></div>
         </article>
@@ -66,6 +79,6 @@
         {% endif %}
     </main>
 
-    <footer class="site-footer"><div class="container footer-inner">{% include '_logo.html' %}<p>أخبار هولندا كما تهمك.</p><p class="footer-date">© 2026</p></div></footer>
+    {% include '_footer.html' %}
 </body>
 </html>

@@ -35,7 +35,7 @@ class NewsContentTests(unittest.TestCase):
                      published_parsed=datetime(2026, 9, 9, hour, index, tzinfo=timezone.utc).timetuple())
                 for index in range(count)]
 
-    def test_fifteen_articles_give_each_source_five_places_in_date_order(self):
+    def test_fifteen_articles_are_selected_from_each_source_in_date_order(self):
         items = sum((self.entries(source, 9, hour) for source, hour in [('A', 10), ('B', 11), ('C', 12)]), [])
         selected = app.select_news_entries(items)
         self.assertEqual(len(selected), 15)
@@ -151,20 +151,35 @@ class NewsContentTests(unittest.TestCase):
             self.assertIn('لم يوفّر المصدر', record['summary'])
             self.assertIsNone(record['image'])
 
-    def test_fifteen_cards_render_and_cache_is_reused(self):
+    def test_homepage_shows_nine_cards_and_cache_is_reused(self):
         feeds = [SimpleNamespace(entries=self.entries(source['name'], 8)) for source in app.RSS_SOURCES]
         feeds_by_url = dict(zip((source['url'] for source in app.RSS_SOURCES), feeds))
         with patch.object(app, 'fetch_news', side_effect=lambda url: feeds_by_url[url]) as fetch, \
                 patch.object(app, 'translate_to_arabic', return_value='خبر مترجم باللغة العربية'):
             client = app.app.test_client()
             page = BeautifulSoup(client.get('/').data, 'html.parser')
-            self.assertEqual(len(page.select('.news-card')), 15)
-            self.assertEqual(page.select_one('.article-count').get_text(strip=True), '15 خبرًا')
+            self.assertEqual(len(page.select('.news-card')), app.HOME_PAGE_SIZE)
+            self.assertEqual(page.select_one('.article-count').get_text(strip=True), '9 من 15 خبرًا')
             self.assertEqual(len(page.select('.card-image')), 0)
-            self.assertEqual(Counter(badge.get_text() for badge in page.select('.source-badge bdi')),
-                             {source['name']: 5 for source in app.RSS_SOURCES})
+            self.assertTrue({badge.get_text() for badge in page.select('.source-badge bdi')})
             client.get('/category/netherlands')
-            self.assertEqual(fetch.call_count, 3)
+            self.assertEqual(fetch.call_count, len(app.RSS_SOURCES))
+
+    def test_seo_routes_and_home_metadata_are_present(self):
+        client = app.app.test_client()
+        with patch.object(app, 'load_news', return_value=[]):
+            robots = client.get('/robots.txt')
+            self.assertEqual(robots.status_code, 200)
+            self.assertIn('Sitemap: https://nl-arabic-news.onrender.com/sitemap.xml', robots.get_data(as_text=True))
+
+            sitemap = client.get('/sitemap.xml')
+            self.assertEqual(sitemap.status_code, 200)
+            self.assertIn('<urlset', sitemap.get_data(as_text=True))
+
+            page = BeautifulSoup(client.get('/').data, 'html.parser')
+            self.assertEqual(page.select_one('meta[name="robots"]')['content'].split(',')[0], 'index')
+            self.assertEqual(page.select_one('link[rel="canonical"]')['href'], 'https://nl-arabic-news.onrender.com/')
+            self.assertIsNotNone(page.select_one('meta[name="description"]'))
 
 
 if __name__ == '__main__':

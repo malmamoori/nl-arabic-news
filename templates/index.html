@@ -10,7 +10,7 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>NL بالعربي</title>
+    {% include '_seo_head.html' %}
 
     {% include '_brand_head.html' %}
     <script src="{{ url_for('static', filename='news.js') }}" defer></script>
@@ -67,9 +67,11 @@
                     آخر الأخبار
                 </a>
 
-                <a href="#about">
-                    عن الموقع
-                </a>
+                <a href="{{ url_for('archive') }}">الأرشيف</a>
+
+                <a href="#alerts">التنبيهات</a>
+
+                <a href="{{ url_for('transparency') }}">الشفافية</a>
 
             </nav>
 
@@ -156,6 +158,32 @@
 
 
 
+        <!-- IMPORTANT ALERTS -->
+
+        <section class="container alerts-section" id="alerts" aria-labelledby="alertsTitle">
+            <div class="alerts-copy">
+                <p class="eyebrow">ابقَ على اطلاع</p>
+                <h2 id="alertsTitle">تنبيهات مهمة لحياتك في هولندا</h2>
+                <p>اختر ما يهمك من الإضرابات والطقس والإقامة وقرارات الحكومة. تحفظ تفضيلاتك على هذا الجهاز.</p>
+            </div>
+            <form class="alerts-form" id="alertsForm">
+                <fieldset>
+                    <legend>أنواع التنبيهات</legend>
+                    <label><input type="checkbox" name="alert-topic" value="transport"> إضرابات النقل</label>
+                    <label><input type="checkbox" name="alert-topic" value="weather"> الطقس والتحذيرات</label>
+                    <label><input type="checkbox" name="alert-topic" value="residency"> الإقامة والاندماج</label>
+                    <label><input type="checkbox" name="alert-topic" value="government"> القوانين وقرارات الحكومة</label>
+                </fieldset>
+                <div class="alerts-actions">
+                    <button class="primary-button" type="submit">تفعيل تنبيهات المتصفح</button>
+                    <span class="alerts-status" id="alertsStatus" role="status" aria-live="polite"></span>
+                </div>
+                <p class="alerts-note">لن نطلب بريدك الإلكتروني. عند فتح الموقع، تظهر لك الأخبار المهمة المطابقة لاختياراتك في هذا المتصفح.</p>
+            </form>
+        </section>
+
+
+
         <!-- NEWS -->
 
         <section
@@ -179,7 +207,7 @@
 
 
                 <span class="article-count">
-                    {{ news|length }} خبرًا
+                    {{ news|length }} من {{ total_news }} خبرًا
                 </span>
 
             </div>
@@ -214,6 +242,8 @@
                 <article
                     class="news-card"
                     data-source="{{ item.source }}"
+                    data-article-id="{{ item.id }}"
+                    data-alert-topics="{{ item.alert_topics|join(',') }}"
                     style="--accent: {{ item.accent }}"
                 >
 
@@ -237,13 +267,26 @@
                             <span class="card-number" aria-hidden="true">{{ '%02d'|format(loop.index) }}</span>
                         </div>
                         <p class="card-date">{{ item.date }}</p>
-                        <h3 dir="auto">
+                        {% if item.alert_topics %}<span class="alert-tag">تنبيه مهم</span>{% endif %}
+                        <div class="card-language-controls"{% if not item.has_original_variant %} hidden{% endif %}>
+                            <button class="language-button active" type="button" data-language="arabic">العربية</button>
+                            <button class="language-button" type="button" data-language="original">{{ item.source_language|upper }} الأصلية</button>
+                        </div>
+                        <h3 class="language-content" data-language-content="arabic" dir="auto">
                             <a href="{{ url_for('article', article_id=item.id) }}">{{ item.title }}</a>
                         </h3>
+                        {% if item.has_original_variant %}
+                        <h3 class="language-content" data-language-content="original" dir="auto" hidden>
+                            <a href="{{ url_for('article', article_id=item.id) }}">{{ item.original_title }}</a>
+                        </h3>
+                        {% endif %}
                         {% if item.translation_notice %}
                         <p class="translation-notice">{{ item.translation_notice }}</p>
                         {% endif %}
-                        <p class="card-summary" dir="auto">{{ item.summary }}</p>
+                        <p class="card-summary language-content" data-language-content="arabic" dir="auto">{{ item.summary }}</p>
+                        {% if item.has_original_variant %}
+                        <p class="card-summary language-content" data-language-content="original" dir="auto" hidden>{{ item.original_summary|truncate(320, True, '…') }}</p>
+                        {% endif %}
                         <div class="card-footer">
                             <a class="original-link" href="{{ item.link }}" target="_blank" rel="noopener noreferrer">
                                 الخبر الأصلي <span aria-hidden="true">↗</span>
@@ -252,6 +295,10 @@
                                 اقرأ المزيد <b aria-hidden="true">←</b>
                             </a>
                         </div>
+                        <div class="card-actions" aria-label="خيارات الخبر">
+                            <button class="icon-action save-button" type="button" data-save-article="{{ item.id }}" aria-pressed="false">حفظ</button>
+                            <button class="icon-action share-button" type="button" data-share-title="{{ item.title }}" data-share-url="{{ url_for('article', article_id=item.id, _external=True) }}">مشاركة</button>
+                        </div>
                     </div>
 
                 </article>
@@ -259,6 +306,13 @@
                 {% endfor %}
 
             </div>
+
+            {% if total_news > news|length %}
+            <div class="archive-cta">
+                <p>تُعرض أحدث 9 أخبار هنا لتبقى الصفحة سريعة وواضحة.</p>
+                <a class="secondary-button" href="{{ url_for('archive') }}">عرض الأرشيف <span aria-hidden="true">←</span></a>
+            </div>
+            {% endif %}
 
         </section>
 
@@ -306,56 +360,7 @@
 
     <!-- FOOTER -->
 
-    <footer class="site-footer">
-
-        <div class="container footer-inner">
-
-            {% include '_logo.html' %}
-
-            <p>
-                أخبار هولندا كما تهمك.
-            </p>
-
-            <p class="footer-date">
-                © 2026
-            </p>
-
-        </div>
-
-    </footer>
-
-
-    <script>
-        const searchInput = document.getElementById("newsSearch");
-        const sourceButtons = document.querySelectorAll(".source-btn");
-        const newsCards = document.querySelectorAll(".news-card");
-
-        let activeSource = "all";
-
-        function filterNews() {
-            const searchValue = searchInput.value.toLowerCase();
-
-            newsCards.forEach(function (card) {
-                const text = card.innerText.toLowerCase();
-                const source = card.dataset.source;
-                const matchesSearch = text.includes(searchValue);
-                const matchesSource = activeSource === "all" || source === activeSource;
-
-                card.style.display = matchesSearch && matchesSource ? "" : "none";
-            });
-        }
-
-        searchInput.addEventListener("input", filterNews);
-
-        sourceButtons.forEach(function (button) {
-            button.addEventListener("click", function () {
-                sourceButtons.forEach(btn => btn.classList.remove("active"));
-                this.classList.add("active");
-                activeSource = this.dataset.source;
-                filterNews();
-            });
-        });
-    </script>
+    {% include '_footer.html' %}
 </body>
 
 </html>

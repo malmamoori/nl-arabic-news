@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% include '_seo_head.html' %}
+    {% include '_brand_head.html' %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="site-header">
+        <div class="container header-inner">
+            {% include '_logo.html' %}
+            <nav class="main-nav" aria-label="القائمة الرئيسية">
+                <a href="{{ url_for('home') }}">الرئيسية</a>
+                <a href="{{ url_for('archive') }}">الأرشيف</a>
+                <a href="{{ url_for('home') }}#alerts">التنبيهات</a>
+                <a class="active" href="{{ url_for('transparency') }}">الشفافية</a>
+            </nav>
+            <div class="header-mark" aria-hidden="true">
+                <img src="{{ url_for('static', filename='brand/nl-bilarabi-icon.png') }}" alt="" width="40" height="40">
+            </div>
+        </div>
+    </header>
+
+    <main class="container transparency-page">
+        <div class="page-heading">
+            <p class="eyebrow">ثقتك أولًا</p>
+            <h1>الشفافية والتواصل</h1>
+            <p>نوضح هنا كيف نعمل، وما الذي نفعله بالنصوص والبيانات، وكيف يمكنك تصحيح أي خطأ.</p>
+        </div>
+
+        <section class="transparency-grid" aria-label="سياسات الموقع">
+            <article class="policy-card policy-card-featured">
+                <p class="policy-label">من يدير الموقع؟</p>
+                <h2>{{ site_manager }}</h2>
+                <p>NL بالعربي منصة أخبار خدمية تساعد الناطقين بالعربية على متابعة المستجدات في هولندا وفهم أثرها العملي.</p>
+            </article>
+
+            <article class="policy-card">
+                <p class="policy-label">سياسة المصادر</p>
+                <h2>نربط دائمًا بالمصدر</h2>
+                <p>نجمع العناوين والملخصات من مصادر إخبارية ورسمية موثوقة، ونضع رابط الخبر الأصلي بجانب كل مادة حتى تتمكن من التحقق والتوسع.</p>
+            </article>
+
+            <article class="policy-card">
+                <p class="policy-label">الترجمة</p>
+                <h2>تلخيص وترجمة للمساعدة</h2>
+                <p>تُترجم العناوين والملخصات آليًا لتسهيل القراءة، وقد تظهر النسخة الأصلية عند تعذر الترجمة. لا تحل الترجمة محل النص الرسمي أو الاستشارة المتخصصة.</p>
+            </article>
+
+            <article class="policy-card">
+                <p class="policy-label">التصحيحات</p>
+                <h2>نصحح بوضوح</h2>
+                <p>إذا وجدت خطأً في معلومة أو ترجمة أو رابط، أرسل اسم الخبر ورابطه وما يجب تصحيحه. نراجع البلاغ ونحدّث المادة أو نوضح التصحيح عند الحاجة.</p>
+            </article>
+
+            <article class="policy-card">
+                <p class="policy-label">الخصوصية</p>
+                <h2>لا نجمع بريدك للتنبيهات</h2>
+                <p>حفظ الأخبار وتفضيلات التنبيهات يعملان داخل متصفحك عبر التخزين المحلي. لا نبيع هذه التفضيلات ولا نستخدمها لإنشاء ملف إعلاني عنك.</p>
+            </article>
+        </section>
+
+        <section class="contact-panel" aria-labelledby="contactTitle">
+            <div>
+                <p class="eyebrow">تواصل معنا</p>
+                <h2 id="contactTitle">تصحيح، اقتراح، أو سؤال</h2>
+                <p>نرحب بالرسائل المتعلقة بدقة الأخبار، الاقتراحات، وطلبات التوضيح.</p>
+            </div>
+            {% if contact_email %}
+                <a class="primary-button" href="mailto:{{ contact_email }}?subject=رسالة%20إلى%20NL%20بالعربي">{{ contact_email }}</a>
+            {% else %}
+                <span class="contact-unavailable">سيتم تفعيل بريد التواصل قريبًا</span>
+            {% endif %}
+        </section>
+    </main>
+
+    {% include '_footer.html' %}
+</body>
+</html>
