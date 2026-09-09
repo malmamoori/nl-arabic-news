@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ article.title }} | NL بالعربي</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="site-header">
+        <div class="container header-inner">
+            <a class="logo" href="{{ url_for('home') }}"><span>NL</span> بالعربي</a>
+            <nav class="main-nav" aria-label="التصنيفات">
+                <a href="{{ url_for('home') }}">الرئيسية</a>
+                {% for slug, label in categories.items() %}<a class="{% if article.category == label %}active{% endif %}" href="{{ url_for('category', slug=slug) }}">{{ label }}</a>{% endfor %}
+            </nav>
+            <div class="header-mark" aria-label="هولندا بالعربي">NL<span>/</span>26</div>
+        </div>
+    </header>
+
+    <main class="container article-page">
+        <a class="back-link" href="{{ url_for('home') }}">→ العودة إلى الأخبار</a>
+        <article class="article-content" style="--accent: {{ article.accent }}">
+            <div class="article-meta"><span class="category">{{ article.category }}</span><span>{{ article.date }} · {{ article.read_time }} قراءة</span></div>
+            <h1>{{ article.title }}</h1>
+            <p class="article-lead">{{ article.summary }}</p>
+            <div class="article-rule"></div>
+            <p>{{ article.body }}</p>
+            <p>احفظ هذه الصفحة للعودة إليها عند الحاجة، وشاركها مع من قد يستفيد منها. تابع دائما آخر المتطلبات والمواعيد عبر المصادر الرسمية.</p>
+            <div class="article-signoff"><span>NL بالعربي</span><span>خبر واضح، حياة أسهل.</span></div>
+        </article>
+        {% if related %}
+        <section class="related-section">
+            <div class="section-heading"><h2>اقرأ أيضا</h2></div>
+            <div class="related-grid">{% for item in related %}<a class="related-card" href="{{ url_for('article', article_id=item.id) }}"><span>{{ item.category }}</span><strong>{{ item.title }}</strong><b>←</b></a>{% endfor %}</div>
+        </section>
+        {% endif %}
+    </main>
+
+    <footer class="site-footer"><div class="container footer-inner"><a class="logo" href="{{ url_for('home') }}"><span>NL</span> بالعربي</a><p>أخبار هولندا كما تهمك.</p><p class="footer-date">© 2026</p></div></footer>
+</body>
+</html>

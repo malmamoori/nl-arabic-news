@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if active_category %}{{ active_category }} | {% endif %}NL بالعربي</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="site-header">
+        <div class="container header-inner">
+            <a class="logo" href="{{ url_for('home') }}"><span>NL</span> بالعربي</a>
+            <nav class="main-nav" aria-label="التصنيفات">
+                <a class="{% if not active_category %}active{% endif %}" href="{{ url_for('home') }}">الرئيسية</a>
+                {% for slug, label in categories.items() %}
+                <a class="{% if active_category == label %}active{% endif %}" href="{{ url_for('category', slug=slug) }}">{{ label }}</a>
+                {% endfor %}
+            </nav>
+            <div class="header-mark" aria-label="هولندا بالعربي">NL<span>/</span>26</div>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero container">
+            <div class="hero-copy">
+                <p class="eyebrow">من قلب هولندا</p>
+                <h1>{% if active_category %}أخبار {{ active_category }}{% else %}أخبار هولندا<br><em>باللغة العربية</em>{% endif %}</h1>
+                <p class="hero-intro">قراءة أوضح لما يحدث حولك. أخبار وتحديثات عملية للعرب المقيمين في هولندا.</p>
+            </div>
+            <div class="hero-note">
+                <span class="note-line"></span>
+                <p>الأربعاء<br><strong>09.09.2026</strong></p>
+                <p class="note-small">نختصر لك المهم<br>بكل وضوح.</p>
+            </div>
+        </section>
+
+        <div class="ticker-wrap">
+            <div class="container breaking-news">
+                <span class="ticker-label">مهم الآن</span>
+                <p>دليلك اليومي لفهم الأخبار والإجراءات التي تمس حياتك في هولندا.</p>
+                <span class="ticker-arrow">←</span>
+            </div>
+        </div>
+
+        <section class="container news-section">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">مختارات التحرير</p>
+                    <h2>{% if active_category %}كل أخبار {{ active_category }}{% else %}آخر الأخبار{% endif %}</h2>
+                </div>
+                <span class="article-count">{{ news|length }} أخبار</span>
+            </div>
+            <div class="news-grid">
+                {% for item in news %}
+                <article class="news-card" style="--accent: {{ item.accent }}">
+                    <div class="card-topline"><span class="category">{{ item.category }}</span><span>{{ item.date }}</span></div>
+                    <div class="card-number">0{{ loop.index }}</div>
+                    <h3><a href="{{ url_for('article', article_id=item.id) }}">{{ item.title }}</a></h3>
+                    <p>{{ item.summary }}</p>
+                    <div class="card-footer"><span>{{ item.read_time }} قراءة</span><a class="read-link" href="{{ url_for('article', article_id=item.id) }}">اقرأ المزيد <b>←</b></a></div>
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container footer-inner">
+            <a class="logo" href="{{ url_for('home') }}"><span>NL</span> بالعربي</a>
+            <p>أخبار هولندا كما تهمك.</p>
+            <p class="footer-date">© 2026</p>
+        </div>
+    </footer>
+</body>
+</html>
