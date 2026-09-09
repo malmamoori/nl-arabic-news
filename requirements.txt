@@ -1,2 +1,5 @@
 Flask
 gunicorn
+feedparser
+beautifulsoup4
+deep-translator

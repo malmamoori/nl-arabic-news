@@ -29,12 +29,12 @@
             <p class="article-lead">{{ article.summary }}</p>
             <div class="article-rule"></div>
             <p>{{ article.body }}</p>
-            <p>احفظ هذه الصفحة للعودة إليها عند الحاجة، وشاركها مع من قد يستفيد منها. تابع دائما آخر المتطلبات والمواعيد عبر المصادر الرسمية.</p>
+            <p>احفظ هذه الصفحة للعودة إليها عند الحاجة، وشاركها مع من قد يستفيد منها. تابع دائمًا آخر المتطلبات والمواعيد عبر المصادر الرسمية.</p>
             <div class="article-signoff"><span>NL بالعربي</span><span>خبر واضح، حياة أسهل.</span></div>
         </article>
         {% if related %}
         <section class="related-section">
-            <div class="section-heading"><h2>اقرأ أيضا</h2></div>
+            <div class="section-heading"><h2>اقرأ أيضًا</h2></div>
             <div class="related-grid">{% for item in related %}<a class="related-card" href="{{ url_for('article', article_id=item.id) }}"><span>{{ item.category }}</span><strong>{{ item.title }}</strong><b>←</b></a>{% endfor %}</div>
         </section>
         {% endif %}
