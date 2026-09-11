@@ -29,9 +29,57 @@ app.config["CONTACT_EMAIL"] = os.getenv("CONTACT_EMAIL", "").strip()
 app.config["SITE_URL"] = os.getenv("SITE_URL", "https://nl-arabic-news.onrender.com").rstrip("/")
 
 
+@app.after_request
+def add_security_headers(response):
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    response.headers.setdefault("Permissions-Policy", "camera=(), geolocation=(), microphone=()")
+    return response
+
+
 def site_absolute_url(path="/"):
     """Build canonical production URLs without depending on the current host."""
     return f"{app.config['SITE_URL']}/{path.lstrip('/')}"
+
+
+def image_url(value):
+    """Route supported external images through the local image proxy."""
+    if isinstance(value, str) and value.startswith("https://static.dw.com/"):
+        return url_for("dw_image", url=value)
+    return value
+
+
+@app.context_processor
+def inject_template_helpers():
+    return {
+        "image_url": image_url,
+        "categories": categories,
+        "current_year": datetime.now().year,
+    }
+
+
+@app.route("/media/dw-image")
+def dw_image():
+    image_url = request.args.get("url", "")
+    parsed = urlsplit(image_url)
+    if parsed.scheme != "https" or parsed.hostname not in {"static.dw.com", "www.dw.com"}:
+        abort(404)
+
+    try:
+        with requests.get(
+            image_url, timeout=HTTP_TIMEOUT, headers={"User-Agent": "NLArabicNews/1.0"}
+        ) as response:
+            response.raise_for_status()
+            content_type = response.headers.get("Content-Type", "").split(";", 1)[0].lower()
+            if not content_type.startswith("image/"):
+                abort(404)
+            image_response = make_response(response.content)
+            image_response.headers["Content-Type"] = content_type
+            image_response.headers["Cache-Control"] = "public, max-age=86400"
+            return image_response
+    except requests.RequestException:
+        abort(404)
 
 
 def seo_context(title, description, canonical, page_type="website", image=None,
@@ -58,6 +106,8 @@ RSS_SOURCES = [
         "name": "NL Times",
         "url": "https://nltimes.nl/rss.xml",
         "language": "en",
+        "category": "عام",
+        "slug": "general",
     },
     {
         "name": "Rijksoverheid",
@@ -69,16 +119,41 @@ RSS_SOURCES = [
             }, separators=(",", ":")),
         }),
         "language": "nl",
+        "category": "عام",
+        "slug": "general",
     },
     {
         "name": "DutchNews",
         "url": "https://www.dutchnews.nl/feed/",
         "language": "en",
+        "category": "عام",
+        "slug": "general",
     },
     {
         "name": "DW Germany",
         "url": "https://rss.dw.com/rdf/rss-en-all",
         "language": "en",
+        "category": "ألمانيا",
+        "slug": "germany",
+    },
+    {
+        "name": "Tagesschau",
+        "url": "https://www.tagesschau.de/xml/rss2",
+        "language": "de",
+        "category": "ألمانيا",
+        "slug": "germany",
+    },
+    {
+        "name": "Deutschlandfunk",
+        "url": "https://www.deutschlandfunk.de/nachrichten-100.rss",
+        "language": "de",
+        "category": "ألمانيا",
+        "slug": "germany",
+    },
+    {
+        "name": "NDR",
+        "url": "https://www.ndr.de/index~rss2.xml",
+        "language": "de",
         "category": "ألمانيا",
         "slug": "germany",
     },
@@ -89,13 +164,180 @@ RSS_SOURCES = [
         "category": "أوروبا",
         "slug": "europe",
     },
+    {
+        "name": "The Guardian Europe",
+        "url": "https://www.theguardian.com/world/europe-news/rss",
+        "language": "en",
+        "category": "أوروبا",
+        "slug": "europe",
+    },
+    {
+        "name": "POLITICO Europe",
+        "url": "https://www.politico.eu/feed/",
+        "language": "en",
+        "category": "أوروبا",
+        "slug": "europe",
+    },
+    {
+        "name": "Euronews Europe",
+        "url": "https://www.euronews.com/rss?level=theme&name=europe",
+        "language": "en",
+        "category": "أوروبا",
+        "slug": "europe",
+    },
+    {
+        "name": "Reuters",
+        "url": "https://news.google.com/rss/search?q=site%3Areuters.com&hl=en-US&gl=US&ceid=US:en",
+        "language": "en",
+        "category": "دولي",
+        "slug": "international",
+    },
+    {
+        "name": "The Guardian",
+        "url": "https://www.theguardian.com/world/rss",
+        "language": "en",
+        "category": "دولي",
+        "slug": "international",
+    },
+    {
+        "name": "Alsumaria",
+        "url": "https://www.alsumaria.tv/Rss/iraq-latest-news/ar",
+        "language": "ar",
+        "category": "العراق",
+        "slug": "iraq",
+    },
+    {
+        "name": "Rudaw Iraq",
+        "url": "https://www.rudawarabia.net/arabic/rss.xml",
+        "language": "ar",
+        "category": "العراق",
+        "slug": "iraq",
+    },
+    {
+        "name": "Shafaq News",
+        "url": "https://shafaq.com/ar/rss",
+        "language": "ar",
+        "category": "العراق",
+        "slug": "iraq",
+    },
+    {
+        "name": "Iraqi News",
+        "url": "https://news.google.com/rss/search?q=site%3Airaqinews.com+Iraq&hl=en-US&gl=US&ceid=US:en",
+        "language": "en",
+        "category": "العراق",
+        "slug": "iraq",
+    },
+    {
+        "name": "Kurdistan24 Iraq",
+        "url": "https://news.google.com/rss/search?q=site%3Akurdistan24.net+Iraq&hl=en-US&gl=US&ceid=US:en",
+        "language": "en",
+        "category": "العراق",
+        "slug": "iraq",
+    },
+    {
+        "name": "Al Jazeera",
+        "url": "https://www.aljazeera.com/xml/rss/all.xml",
+        "language": "en",
+        "category": "الشرق الأوسط",
+        "slug": "middle-east",
+    },
+    {
+        "name": "Asharq Al-Awsat",
+        "url": "https://aawsat.com/feed/arab-world",
+        "language": "ar",
+        "category": "الشرق الأوسط",
+        "slug": "middle-east",
+    },
+    {
+        "name": "Arab News",
+        "url": "https://news.google.com/rss/search?q=site%3Aarabnews.com+Middle+East&hl=en-US&gl=US&ceid=US:en",
+        "language": "en",
+        "category": "الشرق الأوسط",
+        "slug": "middle-east",
+    },
+    {
+        "name": "Middle East Eye",
+        "url": "https://www.middleeasteye.net/rss",
+        "language": "en",
+        "category": "الشرق الأوسط",
+        "slug": "middle-east",
+    },
+    {
+        "name": "Reuters Middle East",
+        "url": "https://news.google.com/rss/search?q=site%3Areuters.com%2Fworld%2Fmiddle-east&hl=en-US&gl=US&ceid=US:en",
+        "language": "en",
+        "category": "الشرق الأوسط",
+        "slug": "middle-east",
+    },
+    {
+        "name": "The National",
+        "url": "https://news.google.com/rss/search?q=site%3Athenationalnews.com+Middle+East&hl=en-US&gl=US&ceid=US:en",
+        "language": "en",
+        "category": "الشرق الأوسط",
+        "slug": "middle-east",
+    },
+    {
+        "name": "De Telegraaf",
+        "url": "https://www.telegraaf.nl/rss",
+        "language": "nl",
+        "category": "عام",
+        "slug": "general",
+    },
+    {
+        "name": "NOS Nieuws",
+        "url": "https://feeds.nos.nl/nosnieuwsalgemeen",
+        "language": "nl",
+        "category": "عام",
+        "slug": "general",
+    },
+    {
+        "name": "NOS Sport",
+        "url": "https://feeds.nos.nl/nossportalgemeen",
+        "language": "nl",
+        "category": "رياضة",
+        "slug": "sport",
+    },
+    {
+        "name": "NOS Voetbal",
+        "url": "https://feeds.nos.nl/nosvoetbal",
+        "language": "nl",
+        "category": "رياضة",
+        "slug": "sport",
+    },
+    {
+        "name": "NOS Formule 1",
+        "url": "https://feeds.nos.nl/nossportformule1",
+        "language": "nl",
+        "category": "رياضة",
+        "slug": "sport",
+    },
+    {
+        "name": "BBC Sport",
+        "url": "https://feeds.bbci.co.uk/sport/rss.xml",
+        "language": "en",
+        "category": "رياضة",
+        "slug": "sport",
+    },
+    {
+        "name": "BBC Football",
+        "url": "https://feeds.bbci.co.uk/sport/football/rss.xml",
+        "language": "en",
+        "category": "رياضة",
+        "slug": "sport",
+    },
+    {
+        "name": "The Guardian Sport",
+        "url": "https://www.theguardian.com/sport/rss",
+        "language": "en",
+        "category": "رياضة",
+        "slug": "sport",
+    },
 ]
 
-# Keep a small, balanced archive in memory.  The home page deliberately shows
-# only one digest of nine stories; older loaded stories remain available in the
-# archive rather than making the front page overwhelming.
-NEWS_LIMIT = 15
-HOME_PAGE_SIZE = 9
+# Keep a balanced working set in memory while limiting each page for fast scans.
+NEWS_LIMIT = 200
+HOME_PAGE_SIZE = 36
+CATEGORY_PAGE_SIZE = 25
 NEWS_CACHE_TTL = 15 * 60
 NEWS_RETRY_TTL = 60
 ARTICLE_CACHE_LIMIT = 150
@@ -111,8 +353,13 @@ _translation_retry_after = 0.0
 
 categories = {
     "netherlands": "هولندا",
+    "general": "عام",
+    "international": "دولي",
+    "iraq": "العراق",
+    "middle-east": "الشرق الأوسط",
     "germany": "ألمانيا",
     "europe": "أوروبا",
+    "sport": "رياضة",
 }
 
 
@@ -187,6 +434,28 @@ def translate_to_arabic(text, source_language="auto"):
         return None
 
 
+@lru_cache(maxsize=512)
+def cached_dutch_translation(text, source_language="auto"):
+    result = clean_news_text(NewsTranslator(
+        source=source_language, target="nl"
+    ).translate(text))
+    return result or None
+
+
+def translate_to_easy_dutch(text, source_language="auto"):
+    text = clean_news_text(text)
+    if not text:
+        return ""
+    if source_language == "nl":
+        return text
+    try:
+        return cached_dutch_translation(
+            textwrap.shorten(text, width=4900, placeholder="…"), source_language
+        )
+    except Exception:
+        return None
+
+
 def metadata_objects(value):
     if isinstance(value, Mapping):
         return [value]
@@ -209,6 +478,29 @@ def safe_news_url(value, base_url=""):
             return url
     except (ValueError, TypeError):
         pass
+    return None
+
+
+@lru_cache(maxsize=128)
+def get_page_image(url):
+    try:
+        with requests.get(
+            url, timeout=(2, 4), headers={"User-Agent": "NLArabicNews/1.0"}
+        ) as response:
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, "html.parser")
+    except (requests.RequestException, ValueError):
+        return None
+
+    for attributes in (
+        {"property": "og:image"},
+        {"name": "twitter:image"},
+    ):
+        image = soup.find("meta", attrs=attributes)
+        if image:
+            candidate = safe_news_url(image.get("content"), url)
+            if candidate:
+                return candidate
     return None
 
 
@@ -261,6 +553,11 @@ def get_news_image(item):
             url = image_url(image.get("data-src")) or image_url(image.get("src"))
             if url:
                 return url
+
+    hostname = (urlsplit(base_url).hostname or "").lower()
+    page_image_hosts = ("dw.com", "nltimes.nl", "news.google.com", "reuters.com")
+    if any(hostname == host or hostname.endswith(f".{host}") for host in page_image_hosts):
+        return get_page_image(base_url)
     return None
 
 
@@ -289,6 +586,44 @@ def get_alert_topics(*texts):
         ),
     }
     return [topic for topic, keywords in topics.items() if any(word in haystack for word in keywords)]
+
+
+def classify_article(item):
+    """Assign a section from the article content while preserving source sections."""
+    title = clean_news_text(item.get("title")).casefold()
+    summary = clean_news_text(item.get("summary")).casefold()
+    text = f"{title} {summary}"
+
+    sport_keywords = (
+        "football", "voetbal", "formula 1", "formula one", "f1",
+        "tennis", "cycling", "wielrennen", "ajax", "psv", "feyenoord",
+        "sport", "wedstrijd", "league", "champions league", "eredivisie",
+        "كرة القدم", "فورمولا 1", "فورمولا واحد", "تنس", "دوري", "مباراة",
+        "مباريات", "رياضة", "كأس العالم", "الدوري الهولندي",
+    )
+
+    if any(keyword in text for keyword in sport_keywords):
+        return "رياضة", "sport"
+
+    return (
+        item.get("category", "عام"),
+        item.get("slug", "general"),
+    )
+
+
+def category_items(items, slug):
+    """Return stories for a category using both normalized slugs and labels."""
+    allowed_slugs = {slug}
+    if slug == "netherlands":
+        allowed_slugs.add("general")
+    elif slug == "international":
+        allowed_slugs.add("general")
+    label = categories[slug]
+    return [
+        item for item in items
+        if item.get("slug") in allowed_slugs
+        or item.get("category") == label
+    ]
 
 
 def select_news_entries(entries):
@@ -550,17 +885,24 @@ def build_news_item(item, index):
     displayed_title = arabic_title or original_title
     displayed_body = summary
     source_language = language if language in ("en", "nl") else ""
+    easy_dutch_title = translate_to_easy_dutch(original_title, source_language or "auto")
+    easy_dutch_summary = translate_to_easy_dutch(clean_summary, source_language or "auto")
+    easy_dutch_title = easy_dutch_title or original_title
+    easy_dutch_summary = easy_dutch_summary or clean_summary
+    article_category, article_slug = classify_article(item)
     has_original_variant = bool(source_language and (
         original_title.casefold() != displayed_title.casefold()
         or (clean_summary and clean_summary.casefold() != displayed_body.casefold())
     ))
     return {
         "id": get_article_id(item),
-        "category": item.get("category", "هولندا"),
-        "slug": item.get("slug", "netherlands"),
+        "category": article_category,
+        "slug": article_slug,
         "title": displayed_title,
         "original_title": original_title,
         "original_summary": clean_summary,
+        "easy_dutch_title": easy_dutch_title,
+        "easy_dutch_summary": textwrap.shorten(easy_dutch_summary, width=320, placeholder="…"),
         "summary": textwrap.shorten(summary, width=320, placeholder="…"),
         "body": displayed_body,
         "translation_notice": translation_notice,
@@ -570,6 +912,7 @@ def build_news_item(item, index):
         "source": item.get("source_name", "NL Times"),
         "source_language": source_language,
         "has_original_variant": has_original_variant,
+        "has_easy_dutch_variant": bool(easy_dutch_title or easy_dutch_summary),
         "alert_topics": get_alert_topics(
             original_title, clean_summary, arabic_title or "", arabic_summary or ""
         ),
@@ -629,10 +972,12 @@ def sitemap():
 
 @app.route("/")
 def home():
-    news = load_news()
+    all_news = load_news()
+    news = category_items(all_news, "general")
     return render_template(
         "index.html",
         news=news[:HOME_PAGE_SIZE],
+        all_news=all_news,
         total_news=len(news),
         news_status=_news_status,
         **seo_context(
@@ -662,6 +1007,7 @@ def archive():
         current_page=page,
         total_pages=total_pages,
         total_news=len(news),
+        page_size=HOME_PAGE_SIZE,
         **seo_context(
             "أرشيف أخبار هولندا بالعربية | NL بالعربي",
             "أرشيف الأخبار الهولندية المترجمة إلى العربية مع روابط المصادر الأصلية.",
@@ -690,14 +1036,13 @@ def category(slug):
     if slug not in categories:
         abort(404)
 
-    category_news = [
-        item for item in load_news()
-        if item["slug"] == slug
-    ]
+    all_news = load_news()
+    category_news = category_items(all_news, slug)
 
     return render_template(
         "index.html",
-        news=category_news[:HOME_PAGE_SIZE],
+        news=category_news[:CATEGORY_PAGE_SIZE],
+        all_news=all_news,
         total_news=len(category_news),
         news_status=_news_status,
         **seo_context(

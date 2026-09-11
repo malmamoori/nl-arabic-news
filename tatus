@@ -1,0 +1,2108 @@
+warning: in the working copy of 'app.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'static/news.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/test_news_reliability.py', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/__pycache__/app.cpython-314.pyc b/__pycache__/app.cpython-314.pyc[m
+[1mindex d996a8b..a6cf460 100644[m
+Binary files a/__pycache__/app.cpython-314.pyc and b/__pycache__/app.cpython-314.pyc differ
+[1mdiff --git a/app.py b/app.py[m
+[1mindex e21a1f3..b75fafb 100644[m
+[1m--- a/app.py[m
+[1m+++ b/app.py[m
+[36m@@ -29,11 +29,59 @@[m [mapp.config["CONTACT_EMAIL"] = os.getenv("CONTACT_EMAIL", "").strip()[m
+ app.config["SITE_URL"] = os.getenv("SITE_URL", "https://nl-arabic-news.onrender.com").rstrip("/")[m
+ [m
+ [m
+[32m+[m[32m@app.after_request[m
+[32m+[m[32mdef add_security_headers(response):[m
+[32m+[m[32m    response.headers.setdefault("X-Content-Type-Options", "nosniff")[m
+[32m+[m[32m    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")[m
+[32m+[m[32m    response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")[m
+[32m+[m[32m    response.headers.setdefault("Permissions-Policy", "camera=(), geolocation=(), microphone=()")[m
+[32m+[m[32m    return response[m
+[32m+[m
+[32m+[m
+ def site_absolute_url(path="/"):[m
+     """Build canonical production URLs without depending on the current host."""[m
+     return f"{app.config['SITE_URL']}/{path.lstrip('/')}"[m
+ [m
+ [m
+[32m+[m[32mdef image_url(value):[m
+[32m+[m[32m    """Route supported external images through the local image proxy."""[m
+[32m+[m[32m    if isinstance(value, str) and value.startswith("https://static.dw.com/"):[m
+[32m+[m[32m        return url_for("dw_image", url=value)[m
+[32m+[m[32m    return value[m
+[32m+[m
+[32m+[m
+[32m+[m[32m@app.context_processor[m
+[32m+[m[32mdef inject_template_helpers():[m
+[32m+[m[32m    return {[m
+[32m+[m[32m        "image_url": image_url,[m
+[32m+[m[32m        "categories": categories,[m
+[32m+[m[32m        "current_year": datetime.now().year,[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m
+[32m+[m[32m@app.route("/media/dw-image")[m
+[32m+[m[32mdef dw_image():[m
+[32m+[m[32m    image_url = request.args.get("url", "")[m
+[32m+[m[32m    parsed = urlsplit(image_url)[m
+[32m+[m[32m    if parsed.scheme != "https" or parsed.hostname not in {"static.dw.com", "www.dw.com"}:[m
+[32m+[m[32m        abort(404)[m
+[32m+[m
+[32m+[m[32m    try:[m
+[32m+[m[32m        with requests.get([m
+[32m+[m[32m            image_url, timeout=HTTP_TIMEOUT, headers={"User-Agent": "NLArabicNews/1.0"}[m
+[32m+[m[32m        ) as response:[m
+[32m+[m[32m            response.raise_for_status()[m
+[32m+[m[32m            content_type = response.headers.get("Content-Type", "").split(";", 1)[0].lower()[m
+[32m+[m[32m            if not content_type.startswith("image/"):[m
+[32m+[m[32m                abort(404)[m
+[32m+[m[32m            image_response = make_response(response.content)[m
+[32m+[m[32m            image_response.headers["Content-Type"] = content_type[m
+[32m+[m[32m            image_response.headers["Cache-Control"] = "public, max-age=86400"[m
+[32m+[m[32m            return image_response[m
+[32m+[m[32m    except requests.RequestException:[m
+[32m+[m[32m        abort(404)[m
+[32m+[m
+[32m+[m
+ def seo_context(title, description, canonical, page_type="website", image=None,[m
+                 published_time=None, structured_data=None):[m
+     return {[m
+[36m@@ -58,6 +106,8 @@[m [mRSS_SOURCES = [[m
+         "name": "NL Times",[m
+         "url": "https://nltimes.nl/rss.xml",[m
+         "language": "en",[m
+[32m+[m[32m        "category": "عام",[m
+[32m+[m[32m        "slug": "general",[m
+     },[m
+     {[m
+         "name": "Rijksoverheid",[m
+[36m@@ -69,11 +119,15 @@[m [mRSS_SOURCES = [[m
+             }, separators=(",", ":")),[m
+         }),[m
+         "language": "nl",[m
+[32m+[m[32m        "category": "عام",[m
+[32m+[m[32m        "slug": "general",[m
+     },[m
+     {[m
+         "name": "DutchNews",[m
+         "url": "https://www.dutchnews.nl/feed/",[m
+         "language": "en",[m
+[32m+[m[32m        "category": "عام",[m
+[32m+[m[32m        "slug": "general",[m
+     },[m
+     {[m
+         "name": "DW Germany",[m
+[36m@@ -82,6 +136,27 @@[m [mRSS_SOURCES = [[m
+         "category": "ألمانيا",[m
+         "slug": "germany",[m
+     },[m
+[32m+[m[32m    {[m
+[32m+[m[32m        "name": "Tagesschau",[m
+[32m+[m[32m        "url": "https://www.tagesschau.de/xml/rss2",[m
+[32m+[m[32m        "language": "de",[m
+[32m+[m[32m        "category": "ألمانيا",[m
+[32m+[m[32m        "slug": "germany",[m
+[32m+[m[32m    },[m
+[32m+[m[32m    {[m
+[32m+[m[32m        "name": "Deutschlandfunk",[m
+[32m+[m[32m        "url": "https://www.deutschlandfunk.de/nachrichten-100.rss",[m
+[32m+[m[32m        "language": "de",[m
+[32m+[m[32m        "category": "ألمانيا",[m
+[32m+[m[32m        "slug": "germany",[m
+[32m+[m[32m    },[m
+[32m+[m[32m    {[m
+[32m+[m[32m        "name": "NDR",[m
+[32m+[m[32m        "url": "https://www.ndr.de/index~rss2.xml",[m
+[32m+[m[32m        "language": "de",[m
+[32m+[m[32m        "category": "ألمانيا",[m
+[32m+[m[32m        "slug": "germany",[m
+[32m+[m[32m    },[m
+     {[m
+         "name": "BBC Europe",[m
+         "url": "https://feeds.bbci.co.uk/news/world/europe/rss.xml",[m
+[36m@@ -89,13 +164,180 @@[m [mRSS_SOURCES = [[m
+         "category": "أوروبا",[m
+         "slug": "europe",[m
+     },[m
+[32m+[m[32m    {[m
+[32m+[m[32m        "name": "The Guardian Europe",[m
+[32m+[m[32m        "url": "https://www.theguardian.com/world/europe-news/rss",[m
+[32m+[m[32m        "language": "en",[m
+[32m+[m[32m        "category": "أوروبا",[m
+[32m+[m[32m        "slug": "europe",[m
+[32m+[m[32m    },[m
+[32m+[m[32m    {[m
+[32m+[m[32m        "name": "POLITICO Europe",[m
+[32m+[m[32m        "url": "https://www.politico.eu/feed/",[m
+[32m+[m[32m        "language": "en",[m
+[32m+[m[32m        "category": "أوروبا",[m
+[32m+[m[32m        "slug": "europe",[m
+[32m+[m[32m    },[m
+[32m+[m[32m    {[m
+[32m+[m[32m        "name": "Euronews Europe",[m
+[32m+[m[32m        "url": "https://www.euronews.com/rss?level=theme&name=europe",[m
+[32m+[m[32m        "language": "en",[m
+[32m+[m[32m        "category": "أوروبا",[m
+[32m+[m[32m        "slug": "europe",[m
+[32m+[m[32m    },[m
+[32m+[m[32m    {[m
+[32m+[m[32m        "name": "Reuters",[m
+[32m+[m[32m        "url": "https://news.google.com/rss/search?q=site%3Areuters.com&hl=en-US&gl=US&ceid=US:en",[m
+[32m+[m[32m        "language": "en",[m
+[32m+[m[32m        "category": "دولي",[m
+[32m+[m[32m        "slug": "international",[m
+[32m+[m[32m    },[m
+[32m+[m[32m    {[m
+[32m+[m[32m        "name": "The Guardian",[m
+[32m+[m[32m        "url": "https://www.theguardian.com/world/rss",[m
+[32m+[m[32m        "language": "en",[m
+[32m+[m[32m        "category": "دولي",[m
+[32m+[m[32m        "slug": "international",[m
+[32m+[m[32m    },[m
+[32m+[m[32m    {[m
+[32m+[m[32m        "name": "Alsumaria",[m
+[32m+[m[32m        "url": "https://www.alsumaria.tv/Rss/iraq-latest-news/ar",[m
+[32m+[m[32m        "language": "ar",[m
+[32m+[m[32m        "category": "العراق",[m
+[32m+[m[32m        "slug": "iraq",[m
+[32m+[m[32m    },[m
+[32m+[m[32m    {[m
+[32m+[m[32m        "name": "Rudaw Iraq",[m
+[32m+[m[32m        "url": "https://www.rudawarabia.net/arabic/rss.xml",[m
+[32m+[m[32m        "language": "ar",[m
+[32m+[m[32m        "category": "العراق",[m
+[32m+[m[32m        "slug": "iraq",[m
+[32m+[m[32m    },[m
+[32m+[m[32m    {[m
+[32m+[m[32m        "name": "Shafaq News",[m
+[32m+[m[32m        "url": "https://shafaq.com/ar/rss",[m
+[32m+[m[32m        "language": "ar",[m
+[32m+[m[32m        "category": "العراق",[m
+[32m+[m[32m        "slug": "iraq",[m
+[32m+[m[32m    },[m
+[32m+[m[32m    {[m
+[32m+[m[32m        "name": "Iraqi News",[m
+[32m+[m[32m        "url": "https://news.google.com/rss/search?q=site%3Airaqinews.com+Iraq&hl=en-US&gl=US&ceid=US:en",[m
+[32m+[m[32m        "language": "en",[m
+[32m+[m[32m        "category": "العراق",[m
+[32m+[m[32m        "slug": "iraq",[m
+[32m+[m[32m    },[m
+[32m+[m[32m    {[m
+[32m+[m[32m        "name": "Kurdistan24 Iraq",[m
+[32m+[m[32m        "url": "https://news.google.com/rss/search?q=site%3Akurdistan24.net+Iraq&hl=en-US&gl=US&ceid=US:en",[m
+[32m+[m[32m        "language": "en",[m
+[32m+[m[32m        "category": "العراق",[m
+[32m+[m[32m        "slug": "iraq",[m
+[32m+[m[32m    },[m
+[32m+[m[32m    {[m
+[32m+[m[32m        "name": "Al Jazeera",[m
+[32m+[m[32m        "url": "https://www.aljazeera.com/xml/rss/all.xml",[m
+[32m+[m[32m        "language": "en",[m
+[32m+[m[32m        "category": "الشرق الأوسط",[m
+[32m+[m[32m        "slug": "middle-east",[m
+[32m+[m[32m    },[m
+[32m+[m[32m    {[m
+[32m+[m[32m        "name": "Asharq Al-Awsat",[m
+[32m+[m[32m        "url": "https://aawsat.com/feed/arab-world",[m
+[32m+[m[32m        "language": "ar",[m
+[32m+[m[32m        "category": "الشرق الأوسط",[m
+[32m+[m[32m        "slug": "middle-east",[m
+[32m+[m[32m    },[m
+[32m+[m[32m    {[m
+[32m+[m[32m        "name": "Arab News",[m
+[32m+[m[32m        "url": "https://news.google.com/rss/search?q=site%3Aarabnews.com+Middle+East&hl=en-US&gl=US&ceid=US:en",[m
+[32m+[m[32m        "language": "en",[m
+[32m+[m[32m        "category": "الشرق الأوسط",[m
+[32m+[m[32m        "slug": "middle-east",[m
+[32m+[m[32m    },[m
+[32m+[m[32m    {[m
+[32m+[m[32m        "name": "Middle East Eye",[m
+[32m+[m[32m        "url": "https://www.middleeasteye.net/rss",[m
+[32m+[m[32m        "language": "en",[m
+[32m+[m[32m        "category": "الشرق الأوسط",[m
+[32m+[m[32m        "slug": "middle-east",[m
+[32m+[m[32m    },[m
+[32m+[m[32m    {[m
+[32m+[m[32m        "name": "Reuters Middle East",[m
+[32m+[m[32m        "url": "https://news.google.com/rss/search?q=site%3Areuters.com%2Fworld%2Fmiddle-east&hl=en-US&gl=US&ceid=US:en",[m
+[32m+[m[32m        "language": "en",[m
+[32m+[m[32m        "category": "الشرق الأوسط",[m
+[32m+[m[32m        "slug": "middle-east",[m
+[32m+[m[32m    },[m
+[32m+[m[32m    {[m
+[32m+[m[32m        "name": "The National",[m
+[32m+[m[32m        "url": "https://news.google.com/rss/search?q=site%3Athenationalnews.com+Middle+East&hl=en-US&gl=US&ceid=US:en",[m
+[32m+[m[32m        "language": "en",[m
+[32m+[m[32m        "category": "الشرق الأوسط",[m
+[32m+[m[32m        "slug": "middle-east",[m
+[32m+[m[32m    },[m
+[32m+[m[32m    {[m
+[32m+[m[32m        "name": "De Telegraaf",[m
+[32m+[m[32m        "url": "https://www.telegraaf.nl/rss",[m
+[32m+[m[32m        "language": "nl",[m
+[32m+[m[32m        "category": "عام",[m
+[32m+[m[32m        "slug": "general",[m
+[32m+[m[32m    },[m
+[32m+[m[32m    {[m
+[32m+[m[32m        "name": "NOS Nieuws",[m
+[32m+[m[32m        "url": "https://feeds.nos.nl/nosnieuwsalgemeen",[m
+[32m+[m[32m        "language": "nl",[m
+[32m+[m[32m        "category": "عام",[m
+[32m+[m[32m        "slug": "general",[m
+[32m+[m[32m    },[m
+[32m+[m[32m    {[m
+[32m+[m[32m        "name": "NOS Sport",[m
+[32m+[m[32m        "url": "https://feeds.nos.nl/nossportalgemeen",[m
+[32m+[m[32m        "language": "nl",[m
+[32m+[m[32m        "category": "رياضة",[m
+[32m+[m[32m        "slug": "sport",[m
+[32m+[m[32m    },[m
+[32m+[m[32m    {[m
+[32m+[m[32m        "name": "NOS Voetbal",[m
+[32m+[m[32m        "url": "https://feeds.nos.nl/nosvoetbal",[m
+[32m+[m[32m        "language": "nl",[m
+[32m+[m[32m        "category": "رياضة",[m
+[32m+[m[32m        "slug": "sport",[m
+[32m+[m[32m    },[m
+[32m+[m[32m    {[m
+[32m+[m[32m        "name": "NOS Formule 1",[m
+[32m+[m[32m        "url": "https://feeds.nos.nl/nossportformule1",[m
+[32m+[m[32m        "language": "nl",[m
+[32m+[m[32m        "category": "رياضة",[m
+[32m+[m[32m        "slug": "sport",[m
+[32m+[m[32m    },[m
+[32m+[m[32m    {[m
+[32m+[m[32m        "name": "BBC Sport",[m
+[32m+[m[32m        "url": "https://feeds.bbci.co.uk/sport/rss.xml",[m
+[32m+[m[32m        "language": "en",[m
+[32m+[m[32m        "category": "رياضة",[m
+[32m+[m[32m        "slug": "sport",[m
+[32m+[m[32m    },[m
+[32m+[m[32m    {[m
+[32m+[m[32m        "name": "BBC Football",[m
+[32m+[m[32m        "url": "https://feeds.bbci.co.uk/sport/football/rss.xml",[m
+[32m+[m[32m        "language": "en",[m
+[32m+[m[32m        "category": "رياضة",[m
+[32m+[m[32m        "slug": "sport",[m
+[32m+[m[32m    },[m
+[32m+[m[32m    {[m
+[32m+[m[32m        "name": "The Guardian Sport",[m
+[32m+[m[32m        "url": "https://www.theguardian.com/sport/rss",[m
+[32m+[m[32m        "language": "en",[m
+[32m+[m[32m        "category": "رياضة",[m
+[32m+[m[32m        "slug": "sport",[m
+[32m+[m[32m    },[m
+ ][m
+ [m
+[31m-# Keep a small, balanced archive in memory.  The home page deliberately shows[m
+[31m-# only one digest of nine stories; older loaded stories remain available in the[m
+[31m-# archive rather than making the front page overwhelming.[m
+[31m-NEWS_LIMIT = 15[m
+[31m-HOME_PAGE_SIZE = 9[m
+[32m+[m[32m# Keep a balanced working set in memory while limiting each page for fast scans.[m
+[32m+[m[32mNEWS_LIMIT = 200[m
+[32m+[m[32mHOME_PAGE_SIZE = 36[m
+[32m+[m[32mCATEGORY_PAGE_SIZE = 25[m
+ NEWS_CACHE_TTL = 15 * 60[m
+ NEWS_RETRY_TTL = 60[m
+ ARTICLE_CACHE_LIMIT = 150[m
+[36m@@ -111,8 +353,13 @@[m [m_translation_retry_after = 0.0[m
+ [m
+ categories = {[m
+     "netherlands": "هولندا",[m
+[32m+[m[32m    "general": "عام",[m
+[32m+[m[32m    "international": "دولي",[m
+[32m+[m[32m    "iraq": "العراق",[m
+[32m+[m[32m    "middle-east": "الشرق الأوسط",[m
+     "germany": "ألمانيا",[m
+     "europe": "أوروبا",[m
+[32m+[m[32m    "sport": "رياضة",[m
+ }[m
+ [m
+ [m
+[36m@@ -187,6 +434,28 @@[m [mdef translate_to_arabic(text, source_language="auto"):[m
+         return None[m
+ [m
+ [m
+[32m+[m[32m@lru_cache(maxsize=512)[m
+[32m+[m[32mdef cached_dutch_translation(text, source_language="auto"):[m
+[32m+[m[32m    result = clean_news_text(NewsTranslator([m
+[32m+[m[32m        source=source_language, target="nl"[m
+[32m+[m[32m    ).translate(text))[m
+[32m+[m[32m    return result or None[m
+[32m+[m
+[32m+[m
+[32m+[m[32mdef translate_to_easy_dutch(text, source_language="auto"):[m
+[32m+[m[32m    text = clean_news_text(text)[m
+[32m+[m[32m    if not text:[m
+[32m+[m[32m        return ""[m
+[32m+[m[32m    if source_language == "nl":[m
+[32m+[m[32m        return text[m
+[32m+[m[32m    try:[m
+[32m+[m[32m        return cached_dutch_translation([m
+[32m+[m[32m            textwrap.shorten(text, width=4900, placeholder="…"), source_language[m
+[32m+[m[32m        )[m
+[32m+[m[32m    except Exception:[m
+[32m+[m[32m        return None[m
+[32m+[m
+[32m+[m
+ def metadata_objects(value):[m
+     if isinstance(value, Mapping):[m
+         return [value][m
+[36m@@ -212,6 +481,29 @@[m [mdef safe_news_url(value, base_url=""):[m
+     return None[m
+ [m
+ [m
+[32m+[m[32m@lru_cache(maxsize=128)[m
+[32m+[m[32mdef get_page_image(url):[m
+[32m+[m[32m    try:[m
+[32m+[m[32m        with requests.get([m
+[32m+[m[32m            url, timeout=(2, 4), headers={"User-Agent": "NLArabicNews/1.0"}[m
+[32m+[m[32m        ) as response:[m
+[32m+[m[32m            response.raise_for_status()[m
+[32m+[m[32m            soup = BeautifulSoup(response.text, "html.parser")[m
+[32m+[m[32m    except (requests.RequestException, ValueError):[m
+[32m+[m[32m        return None[m
+[32m+[m
+[32m+[m[32m    for attributes in ([m
+[32m+[m[32m        {"property": "og:image"},[m
+[32m+[m[32m        {"name": "twitter:image"},[m
+[32m+[m[32m    ):[m
+[32m+[m[32m        image = soup.find("meta", attrs=attributes)[m
+[32m+[m[32m        if image:[m
+[32m+[m[32m            candidate = safe_news_url(image.get("content"), url)[m
+[32m+[m[32m            if candidate:[m
+[32m+[m[32m                return candidate[m
+[32m+[m[32m    return None[m
+[32m+[m
+[32m+[m
+ def get_news_image(item):[m
+     base_url = safe_news_url(item.get("link")) or safe_news_url(item.get("source_url")) or ""[m
+ [m
+[36m@@ -261,6 +553,11 @@[m [mdef get_news_image(item):[m
+             url = image_url(image.get("data-src")) or image_url(image.get("src"))[m
+             if url:[m
+                 return url[m
+[32m+[m
+[32m+[m[32m    hostname = (urlsplit(base_url).hostname or "").lower()[m
+[32m+[m[32m    page_image_hosts = ("dw.com", "nltimes.nl", "news.google.com", "reuters.com")[m
+[32m+[m[32m    if any(hostname == host or hostname.endswith(f".{host}") for host in page_image_hosts):[m
+[32m+[m[32m        return get_page_image(base_url)[m
+     return None[m
+ [m
+ [m
+[36m@@ -291,6 +588,44 @@[m [mdef get_alert_topics(*texts):[m
+     return [topic for topic, keywords in topics.items() if any(word in haystack for word in keywords)][m
+ [m
+ [m
+[32m+[m[32mdef classify_article(item):[m
+[32m+[m[32m    """Assign a section from the article content while preserving source sections."""[m
+[32m+[m[32m    title = clean_news_text(item.get("title")).casefold()[m
+[32m+[m[32m    summary = clean_news_text(item.get("summary")).casefold()[m
+[32m+[m[32m    text = f"{title} {summary}"[m
+[32m+[m
+[32m+[m[32m    sport_keywords = ([m
+[32m+[m[32m        "football", "voetbal", "formula 1", "formula one", "f1",[m
+[32m+[m[32m        "tennis", "cycling", "wielrennen", "ajax", "psv", "feyenoord",[m
+[32m+[m[32m        "sport", "wedstrijd", "league", "champions league", "eredivisie",[m
+[32m+[m[32m        "كرة القدم", "فورمولا 1", "فورمولا واحد", "تنس", "دوري", "مباراة",[m
+[32m+[m[32m        "مباريات", "رياضة", "كأس العالم", "الدوري الهولندي",[m
+[32m+[m[32m    )[m
+[32m+[m
+[32m+[m[32m    if any(keyword in text for keyword in sport_keywords):[m
+[32m+[m[32m        return "رياضة", "sport"[m
+[32m+[m
+[32m+[m[32m    return ([m
+[32m+[m[32m        item.get("category", "عام"),[m
+[32m+[m[32m        item.get("slug", "general"),[m
+[32m+[m[32m    )[m
+[32m+[m
+[32m+[m
+[32m+[m[32mdef category_items(items, slug):[m
+[32m+[m[32m    """Return stories for a category using both normalized slugs and labels."""[m
+[32m+[m[32m    allowed_slugs = {slug}[m
+[32m+[m[32m    if slug == "netherlands":[m
+[32m+[m[32m        allowed_slugs.add("general")[m
+[32m+[m[32m    elif slug == "international":[m
+[32m+[m[32m        allowed_slugs.add("general")[m
+[32m+[m[32m    label = categories[slug][m
+[32m+[m[32m    return [[m
+[32m+[m[32m        item for item in items[m
+[32m+[m[32m        if item.get("slug") in allowed_slugs[m
+[32m+[m[32m        or item.get("category") == label[m
+[32m+[m[32m    ][m
+[32m+[m
+[32m+[m
+ def select_news_entries(entries):[m
+     # Choose fairly from each source, then present the selection newest first.[m
+     by_source = {}[m
+[36m@@ -550,17 +885,24 @@[m [mdef build_news_item(item, index):[m
+     displayed_title = arabic_title or original_title[m
+     displayed_body = summary[m
+     source_language = language if language in ("en", "nl") else ""[m
+[32m+[m[32m    easy_dutch_title = translate_to_easy_dutch(original_title, source_language or "auto")[m
+[32m+[m[32m    easy_dutch_summary = translate_to_easy_dutch(clean_summary, source_language or "auto")[m
+[32m+[m[32m    easy_dutch_title = easy_dutch_title or original_title[m
+[32m+[m[32m    easy_dutch_summary = easy_dutch_summary or clean_summary[m
+[32m+[m[32m    article_category, article_slug = classify_article(item)[m
+     has_original_variant = bool(source_language and ([m
+         original_title.casefold() != displayed_title.casefold()[m
+         or (clean_summary and clean_summary.casefold() != displayed_body.casefold())[m
+     ))[m
+     return {[m
+         "id": get_article_id(item),[m
+[31m-        "category": item.get("category", "هولندا"),[m
+[31m-        "slug": item.get("slug", "netherlands"),[m
+[32m+[m[32m        "category": article_category,[m
+[32m+[m[32m        "slug": article_slug,[m
+         "title": displayed_title,[m
+         "original_title": original_title,[m
+         "original_summary": clean_summary,[m
+[32m+[m[32m        "easy_dutch_title": easy_dutch_title,[m
+[32m+[m[32m        "easy_dutch_summary": textwrap.shorten(easy_dutch_summary, width=320, placeholder="…"),[m
+         "summary": textwrap.shorten(summary, width=320, placeholder="…"),[m
+         "body": displayed_body,[m
+         "translation_notice": translation_notice,[m
+[36m@@ -570,6 +912,7 @@[m [mdef build_news_item(item, index):[m
+         "source": item.get("source_name", "NL Times"),[m
+         "source_language": source_language,[m
+         "has_original_variant": has_original_variant,[m
+[32m+[m[32m        "has_easy_dutch_variant": bool(easy_dutch_title or easy_dutch_summary),[m
+         "alert_topics": get_alert_topics([m
+             original_title, clean_summary, arabic_title or "", arabic_summary or ""[m
+         ),[m
+[36m@@ -629,10 +972,12 @@[m [mdef sitemap():[m
+ [m
+ @app.route("/")[m
+ def home():[m
+[31m-    news = load_news()[m
+[32m+[m[32m    all_news = load_news()[m
+[32m+[m[32m    news = category_items(all_news, "general")[m
+     return render_template([m
+         "index.html",[m
+         news=news[:HOME_PAGE_SIZE],[m
+[32m+[m[32m        all_news=all_news,[m
+         total_news=len(news),[m
+         news_status=_news_status,[m
+         **seo_context([m
+[36m@@ -662,6 +1007,7 @@[m [mdef archive():[m
+         current_page=page,[m
+         total_pages=total_pages,[m
+         total_news=len(news),[m
+[32m+[m[32m        page_size=HOME_PAGE_SIZE,[m
+         **seo_context([m
+             "أرشيف أخبار هولندا بالعربية | NL بالعربي",[m
+             "أرشيف الأخبار الهولندية المترجمة إلى العربية مع روابط المصادر الأصلية.",[m
+[36m@@ -690,14 +1036,13 @@[m [mdef category(slug):[m
+     if slug not in categories:[m
+         abort(404)[m
+ [m
+[31m-    category_news = [[m
+[31m-        item for item in load_news()[m
+[31m-        if item["slug"] == slug[m
+[31m-    ][m
+[32m+[m[32m    all_news = load_news()[m
+[32m+[m[32m    category_news = category_items(all_news, slug)[m
+ [m
+     return render_template([m
+         "index.html",[m
+[31m-        news=category_news[:HOME_PAGE_SIZE],[m
+[32m+[m[32m        news=category_news[:CATEGORY_PAGE_SIZE],[m
+[32m+[m[32m        all_news=all_news,[m
+         total_news=len(category_news),[m
+         news_status=_news_status,[m
+         **seo_context([m
+[1mdiff --git a/static/news.js b/static/news.js[m
+[1mindex f7aaada..59b7355 100644[m
+[1m--- a/static/news.js[m
+[1m+++ b/static/news.js[m
+[36m@@ -120,17 +120,33 @@[m
+     const searchInput = document.getElementById("newsSearch");[m
+     const sourceButtons = document.querySelectorAll(".source-btn");[m
+     const newsCards = document.querySelectorAll(".news-card");[m
+[32m+[m[32m    const newsResultsStatus = document.querySelector("[data-news-results]");[m
+     let activeSource = "all";[m
+ [m
+[32m+[m[32m    const normalizeSearchText = (value) => (value || "")[m
+[32m+[m[32m        .toLocaleLowerCase()[m
+[32m+[m[32m        .replace(/[\u064B-\u065F\u0670]/g, "")[m
+[32m+[m[32m        .replace(/\s+/g, " ")[m
+[32m+[m[32m        .trim();[m
+[32m+[m
+     const filterNews = () => {[m
+[31m-        if (!searchInput) return;[m
+[31m-        const searchValue = searchInput.value.toLocaleLowerCase();[m
+[32m+[m[32m        const searchValue = normalizeSearchText(searchInput?.value);[m
+[32m+[m[32m        let visibleCount = 0;[m
+         newsCards.forEach((card) => {[m
+[31m-            const text = card.innerText.toLocaleLowerCase();[m
+[31m-            const matchesSearch = text.includes(searchValue);[m
+[31m-            const matchesSource = activeSource === "all" || card.dataset.source === activeSource;[m
+[31m-            card.hidden = !(matchesSearch && matchesSource);[m
+[32m+[m[32m            const text = normalizeSearchText(card.textContent);[m
+[32m+[m[32m            const source = normalizeSearchText(card.dataset.source);[m
+[32m+[m[32m            const matchesSearch = !searchValue || text.includes(searchValue);[m
+[32m+[m[32m            const matchesSource = activeSource === "all" || source === normalizeSearchText(activeSource);[m
+[32m+[m[32m            const isVisible = matchesSearch && matchesSource;[m
+[32m+[m[32m            card.hidden = !isVisible;[m
+[32m+[m[32m            if (isVisible) visibleCount += 1;[m
+         });[m
+[32m+[m[32m        if (newsResultsStatus) {[m
+[32m+[m[32m            newsResultsStatus.textContent = visibleCount[m
+[32m+[m[32m                ? `${visibleCount} خبر متاح`[m
+[32m+[m[32m                : "لا توجد أخبار مطابقة لبحثك.";[m
+[32m+[m[32m            newsResultsStatus.hidden = visibleCount > 0;[m
+[32m+[m[32m        }[m
+     };[m
+ [m
+     if (searchInput) searchInput.addEventListener("input", filterNews);[m
+[36m@@ -142,6 +158,7 @@[m
+             filterNews();[m
+         });[m
+     });[m
+[32m+[m[32m    filterNews();[m
+ [m
+     const notifyRelevantStory = () => {[m
+         if (!("Notification" in window) || Notification.permission !== "granted") return false;[m
+[1mdiff --git a/static/style.css b/static/style.css[m
+[1mindex 6fba916..292be4b 100644[m
+[1m--- a/static/style.css[m
+[1m+++ b/static/style.css[m
+[36m@@ -329,6 +329,95 @@[m [mh3 {[m
+     padding-top: 72px;[m
+ }[m
+ [m
+[32m+[m[32m.media-rail {[m
+[32m+[m[32m    border-bottom: 1px solid var(--line);[m
+[32m+[m[32m    padding-bottom: 32px;[m
+[32m+[m[32m    padding-top: 30px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.media-rail-heading {[m
+[32m+[m[32m    align-items: center;[m
+[32m+[m[32m    display: flex;[m
+[32m+[m[32m    gap: 10px;[m
+[32m+[m[32m    margin-bottom: 20px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.media-rail-marker {[m
+[32m+[m[32m    background: var(--orange);[m
+[32m+[m[32m    display: block;[m
+[32m+[m[32m    height: 24px;[m
+[32m+[m[32m    width: 4px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.media-rail-heading h2 {[m
+[32m+[m[32m    color: var(--deep-teal, var(--ink));[m
+[32m+[m[32m    font-size: 21px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.media-rail-note {[m
+[32m+[m[32m    color: var(--muted);[m
+[32m+[m[32m    font-size: 12px;[m
+[32m+[m[32m    margin-right: auto;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.media-rail-track {[m
+[32m+[m[32m    display: flex;[m
+[32m+[m[32m    gap: 16px;[m
+[32m+[m[32m    overflow-x: auto;[m
+[32m+[m[32m    overscroll-behavior-inline: contain;[m
+[32m+[m[32m    padding-bottom: 8px;[m
+[32m+[m[32m    scrollbar-color: var(--teal) transparent;[m
+[32m+[m[32m    scrollbar-width: thin;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.media-rail-item {[m
+[32m+[m[32m    flex: 0 0 168px;[m
+[32m+[m[32m    min-width: 0;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.media-rail-image {[m
+[32m+[m[32m    aspect-ratio: 4 / 5;[m
+[32m+[m[32m    background: var(--teal);[m
+[32m+[m[32m    display: block;[m
+[32m+[m[32m    overflow: hidden;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.media-rail-image img {[m
+[32m+[m[32m    display: block;[m
+[32m+[m[32m    height: 100%;[m
+[32m+[m[32m    object-fit: cover;[m
+[32m+[m[32m    transition: transform .25s ease;[m
+[32m+[m[32m    width: 100%;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.media-rail-image:hover img {[m
+[32m+[m[32m    transform: scale(1.04);[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.media-rail-fallback {[m
+[32m+[m[32m    align-items: center;[m
+[32m+[m[32m    display: flex;[m
+[32m+[m[32m    height: 100%;[m
+[32m+[m[32m    justify-content: center;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.media-rail-fallback img {[m
+[32m+[m[32m    height: 64px;[m
+[32m+[m[32m    object-fit: contain;[m
+[32m+[m[32m    width: 64px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.media-rail-item h3 {[m
+[32m+[m[32m    font-size: 14px;[m
+[32m+[m[32m    line-height: 1.55;[m
+[32m+[m[32m    margin-top: 9px;[m
+[32m+[m[32m    overflow-wrap: anywhere;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.media-rail-item h3 a:hover {[m
+[32m+[m[32m    color: var(--teal);[m
+[32m+[m[32m}[m
+[32m+[m
+ .archive-cta {[m
+     align-items: center;[m
+     border-top: 1px solid var(--line);[m
+[36m@@ -449,7 +538,7 @@[m [mh3 {[m
+ [m
+ .news-image-fallback {[m
+     align-items: center;[m
+[31m-    background: linear-gradient(135deg, var(--teal), #173f42);[m
+[32m+[m[32m    background: var(--teal);[m
+     color: #f8f6f0;[m
+     display: flex;[m
+     flex-direction: column;[m
+[36m@@ -457,243 +546,633 @@[m [mh3 {[m
+     justify-content: center;[m
+ }[m
+ [m
+[31m-.news-image-fallback img {[m
+[31m-    height: 56px;[m
+[31m-    object-fit: contain;[m
+[31m-    opacity: .9;[m
+[31m-    width: 56px;[m
+[32m+[m[32m/* Homepage editorial layout */[m
+[32m+[m[32m.homepage-main {[m
+[32m+[m[32m    display: flex;[m
+[32m+[m[32m    flex-direction: column;[m
+ }[m
+ [m
+[31m-.news-image-fallback span {[m
+[31m-    font-size: 13px;[m
+[31m-    font-weight: 600;[m
+[32m+[m[32m.homepage-main .ticker-wrap {[m
+[32m+[m[32m    order: 1;[m
+ }[m
+ [m
+[31m-.card-body {[m
+[31m-    display: flex;[m
+[31m-    flex: 1;[m
+[31m-    flex-direction: column;[m
+[31m-    padding: 20px 23px;[m
+[32m+[m[32m.homepage-main .editorial-intro {[m
+[32m+[m[32m    order: 2;[m
+ }[m
+ [m
+[31m-.card-topline,[m
+[31m-.card-footer,[m
+[31m-.article-meta {[m
+[31m-    align-items: center;[m
+[31m-    color: var(--muted);[m
+[31m-    display: flex;[m
+[31m-    font-size: 11px;[m
+[31m-    justify-content: space-between;[m
+[32m+[m[32m.homepage-main .news-section {[m
+[32m+[m[32m    order: 3;[m
+ }[m
+ [m
+[31m-.card-topline,[m
+[31m-.article-meta {[m
+[31m-    flex-wrap: wrap;[m
+[31m-    gap: 8px;[m
+[32m+[m[32m.homepage-main .alerts-section {[m
+[32m+[m[32m    order: 4;[m
+ }[m
+ [m
+[31m-.source-badge {[m
+[31m-    align-items: center;[m
+[31m-    background: #eaf0eb;[m
+[31m-    border-radius: 4px;[m
+[31m-    color: var(--teal);[m
+[31m-    display: inline-flex;[m
+[31m-    font-size: 12px;[m
+[31m-    gap: 7px;[m
+[31m-    padding: 4px 9px;[m
+[32m+[m[32m.editorial-intro {[m
+[32m+[m[32m    align-items: end;[m
+[32m+[m[32m    border-bottom: 1px solid var(--line);[m
+[32m+[m[32m    display: flex;[m
+[32m+[m[32m    gap: 40px;[m
+[32m+[m[32m    justify-content: space-between;[m
+[32m+[m[32m    padding-bottom: 34px;[m
+[32m+[m[32m    padding-top: 48px;[m
+ }[m
+ [m
+[31m-.source-badge bdi {[m
+[31m-    font-weight: 700;[m
+[32m+[m[32m.editorial-intro h1 {[m
+[32m+[m[32m    font-size: clamp(38px, 5vw, 68px);[m
+[32m+[m[32m    letter-spacing: -1.5px;[m
+[32m+[m[32m    line-height: 1.15;[m
+ }[m
+ [m
+[31m-.source-badge:hover,[m
+[31m-.original-link:hover {[m
+[31m-    text-decoration: underline;[m
+[32m+[m[32m.editorial-intro h1 em {[m
+[32m+[m[32m    color: var(--teal);[m
+[32m+[m[32m    font-style: normal;[m
+ }[m
+ [m
+[31m-.card-date {[m
+[32m+[m[32m.editorial-intro > p {[m
+     color: var(--muted);[m
+[31m-    font-size: 11px;[m
+[31m-    margin-top: 10px;[m
+[32m+[m[32m    font-size: 15px;[m
+[32m+[m[32m    max-width: 300px;[m
+ }[m
+ [m
+[31m-.alert-tag {[m
+[31m-    align-self: flex-start;[m
+[31m-    background: #f6e4dc;[m
+[31m-    color: #a34327;[m
+[31m-    font-size: 10px;[m
+[31m-    font-weight: 700;[m
+[31m-    margin-top: 10px;[m
+[31m-    padding: 2px 7px;[m
+[32m+[m[32m.ticker-headlines {[m
+[32m+[m[32m    display: flex;[m
+[32m+[m[32m    flex: 1;[m
+[32m+[m[32m    gap: 24px;[m
+[32m+[m[32m    min-width: 0;[m
+[32m+[m[32m    overflow: hidden;[m
+ }[m
+ [m
+[31m-.category {[m
+[31m-    color: var(--accent, var(--orange));[m
+[31m-    font-weight: 700;[m
+[32m+[m[32m.ticker-headlines a {[m
+[32m+[m[32m    border-left: 1px solid rgba(255, 255, 255, .28);[m
+[32m+[m[32m    flex: 1 1 0;[m
+[32m+[m[32m    font-size: 13px;[m
+[32m+[m[32m    line-height: 1.55;[m
+[32m+[m[32m    min-width: 0;[m
+[32m+[m[32m    overflow: hidden;[m
+[32m+[m[32m    padding-left: 20px;[m
+[32m+[m[32m    text-overflow: ellipsis;[m
+[32m+[m[32m    white-space: nowrap;[m
+ }[m
+ [m
+[31m-.card-number {[m
+[31m-    color: var(--muted);[m
+[31m-    direction: ltr;[m
+[31m-    font-family: Georgia, serif;[m
+[31m-    font-size: 16px;[m
+[31m-    line-height: 1;[m
+[32m+[m[32m.ticker-headlines a:hover {[m
+[32m+[m[32m    color: #f2b36b;[m
+ }[m
+ [m
+[31m-.news-card h3 {[m
+[31m-    font-size: 20px;[m
+[31m-    line-height: 1.55;[m
+[31m-    margin: 13px 0 10px;[m
+[31m-    overflow-wrap: anywhere;[m
+[32m+[m[32m.top-news-layout {[m
+[32m+[m[32m    align-items: start;[m
+[32m+[m[32m    border-bottom: 1px solid var(--line);[m
+[32m+[m[32m    display: grid;[m
+[32m+[m[32m    gap: 22px;[m
+[32m+[m[32m    grid-template-columns: minmax(0, 1.25fr) minmax(0, .9fr) minmax(210px, .65fr);[m
+[32m+[m[32m    padding-bottom: 42px;[m
+ }[m
+ [m
+[31m-.news-card h2 {[m
+[31m-    font-size: 20px;[m
+[31m-    line-height: 1.55;[m
+[31m-    margin: 13px 0 10px;[m
+[31m-    overflow-wrap: anywhere;[m
+[32m+[m[32m.featured-column {[m
+[32m+[m[32m    min-width: 0;[m
+ }[m
+ [m
+[31m-.news-card h3 a:hover,[m
+[31m-.news-card h2 a:hover {[m
+[31m-    color: var(--teal);[m
+[32m+[m[32m.featured-story,[m
+[32m+[m[32m.secondary-story,[m
+[32m+[m[32m.latest-story {[m
+[32m+[m[32m    background: transparent;[m
+[32m+[m[32m    border: 0;[m
+[32m+[m[32m    border-top: 3px solid var(--accent);[m
+[32m+[m[32m    min-height: 0;[m
+ }[m
+ [m
+[31m-.card-language-controls,[m
+[31m-.article-language-controls {[m
+[31m-    align-items: center;[m
+[31m-    display: flex;[m
+[31m-    flex-wrap: wrap;[m
+[31m-    gap: 5px;[m
+[32m+[m[32m.featured-story .news-image {[m
+[32m+[m[32m    aspect-ratio: 16 / 9;[m
+ }[m
+ [m
+[31m-.card-language-controls {[m
+[31m-    margin-top: 13px;[m
+[32m+[m[32m.secondary-column {[m
+[32m+[m[32m    border-right: 1px solid var(--line);[m
+[32m+[m[32m    display: grid;[m
+[32m+[m[32m    gap: 22px;[m
+[32m+[m[32m    padding-right: 22px;[m
+ }[m
+ [m
+[31m-.article-language-controls {[m
+[31m-    color: var(--muted);[m
+[31m-    font-size: 12px;[m
+[31m-    margin-top: 22px;[m
+[32m+[m[32m.secondary-story {[m
+[32m+[m[32m    border-bottom: 1px solid var(--line);[m
+[32m+[m[32m    padding-bottom: 20px;[m
+ }[m
+ [m
+[31m-.language-button {[m
+[31m-    background: transparent;[m
+[31m-    border: 1px solid transparent;[m
+[31m-    border-radius: 999px;[m
+[31m-    color: var(--muted);[m
+[31m-    cursor: pointer;[m
+[31m-    font-family: inherit;[m
+[31m-    font-size: 11px;[m
+[31m-    padding: 2px 8px;[m
+[32m+[m[32m.secondary-story:last-child {[m
+[32m+[m[32m    border-bottom: 0;[m
+[32m+[m[32m    padding-bottom: 0;[m
+ }[m
+ [m
+[31m-.language-button:hover,[m
+[31m-.language-button.active {[m
+[31m-    background: #eaf0eb;[m
+[31m-    border-color: #cfded7;[m
+[31m-    color: var(--teal);[m
+[31m-    font-weight: 700;[m
+[32m+[m[32m.secondary-story .news-image {[m
+[32m+[m[32m    aspect-ratio: 16 / 9;[m
+ }[m
+ [m
+[31m-.card-summary {[m
+[31m-    color: var(--muted);[m
+[31m-    font-size: 13px;[m
+[31m-    line-height: 1.8;[m
+[31m-    margin-bottom: 22px;[m
+[31m-    overflow-wrap: anywhere;[m
+[32m+[m[32m.story-body {[m
+[32m+[m[32m    padding-top: 16px;[m
+ }[m
+ [m
+[31m-.translation-notice {[m
+[31m-    background: #f6eddf;[m
+[31m-    border-right: 2px solid var(--orange);[m
+[31m-    color: #795227;[m
+[31m-    font-size: 12px;[m
+[31m-    line-height: 1.7;[m
+[31m-    margin-bottom: 12px;[m
+[31m-    padding: 7px 10px;[m
+[32m+[m[32m.featured-story .story-body {[m
+[32m+[m[32m    padding: 19px 4px 0;[m
+ }[m
+ [m
+[31m-.article-content > .translation-notice {[m
+[31m-    font-size: 14px;[m
+[32m+[m[32m.story-body h2,[m
+[32m+[m[32m.story-body h3,[m
+[32m+[m[32m.story-title {[m
+[32m+[m[32m    line-height: 1.45;[m
+[32m+[m[32m    margin: 12px 0 10px;[m
+[32m+[m[32m    overflow-wrap: anywhere;[m
+ }[m
+ [m
+[31m-.original-link {[m
+[31m-    color: var(--teal);[m
+[31m-    font-weight: 600;[m
+[32m+[m[32m.story-title {[m
+[32m+[m[32m    font-size: 21px;[m
+[32m+[m[32m    font-weight: 700;[m
+ }[m
+ [m
+[31m-.card-footer {[m
+[31m-    border-top: 1px solid var(--line);[m
+[31m-    margin-top: auto;[m
+[31m-    padding-top: 15px;[m
+[32m+[m[32m.featured-story h3 {[m
+[32m+[m[32m    font-size: clamp(25px, 3vw, 38px);[m
+ }[m
+ [m
+[31m-.card-actions,[m
+[31m-.article-actions {[m
+[31m-    display: flex;[m
+[31m-    flex-wrap: wrap;[m
+[31m-    gap: 8px;[m
+[32m+[m[32m.featured-story .story-title {[m
+[32m+[m[32m    font-size: clamp(25px, 3vw, 38px);[m
+ }[m
+ [m
+[31m-.card-actions {[m
+[31m-    margin-top: 15px;[m
+[32m+[m[32m.secondary-story h3 {[m
+[32m+[m[32m    font-size: 21px;[m
+ }[m
+ [m
+[31m-.icon-action {[m
+[31m-    background: transparent;[m
+[31m-    border: 0;[m
+[31m-    color: var(--muted);[m
+[31m-    cursor: pointer;[m
+[31m-    font-family: inherit;[m
+[31m-    font-size: 11px;[m
+[31m-    padding: 2px 0;[m
+[32m+[m[32m.story-body .card-summary {[m
+[32m+[m[32m    margin-bottom: 16px;[m
+ }[m
+ [m
+[31m-.icon-action:hover,[m
+[31m-.icon-action.is-saved {[m
+[31m-    color: var(--teal);[m
+[31m-    font-weight: 700;[m
+[32m+[m[32m.story-body .card-footer {[m
+[32m+[m[32m    margin-top: 0;[m
+ }[m
+ [m
+[31m-.read-link {[m
+[31m-    color: var(--ink);[m
+[31m-    font-weight: 700;[m
+[32m+[m[32m.most-read {[m
+[32m+[m[32m    border-right: 1px solid var(--line);[m
+[32m+[m[32m    padding-right: 22px;[m
+ }[m
+ [m
+[31m-.read-link b {[m
+[31m-    color: var(--orange);[m
+[31m-    font-size: 18px;[m
+[31m-    margin-right: 4px;[m
+[32m+[m[32m.most-read-heading {[m
+[32m+[m[32m    border-bottom: 3px solid var(--orange);[m
+[32m+[m[32m    margin-bottom: 5px;[m
+[32m+[m[32m    padding-bottom: 12px;[m
+ }[m
+ [m
+[31m-.site-footer {[m
+[31m-    background: var(--ink);[m
+[31m-    color: #f4f1eb;[m
+[32m+[m[32m.most-read-heading .eyebrow {[m
+[32m+[m[32m    margin-bottom: 2px;[m
+ }[m
+ [m
+[31m-.footer-inner {[m
+[31m-    min-height: 110px;[m
+[32m+[m[32m.most-read-heading h2 {[m
+[32m+[m[32m    font-size: 26px;[m
+ }[m
+ [m
+[31m-.footer-copy {[m
+[31m-    margin-right: auto;[m
+[32m+[m[32m.most-read ol {[m
+[32m+[m[32m    list-style: none;[m
+ }[m
+ [m
+[31m-.footer-nav {[m
+[32m+[m[32m.most-read-item {[m
+[32m+[m[32m    align-items: start;[m
+[32m+[m[32m    border-bottom: 1px solid var(--line);[m
+     display: flex;[m
+[31m-    flex-wrap: wrap;[m
+     gap: 14px;[m
+[31m-    margin-top: 3px;[m
+[31m-}[m
+[31m-[m
+[31m-.footer-nav a {[m
+[31m-    color: #d7ddd7;[m
+[31m-    font-size: 11px;[m
+[32m+[m[32m    padding: 16px 0;[m
+ }[m
+ [m
+[31m-.footer-nav a:hover {[m
+[32m+[m[32m.most-read-item > span {[m
+[32m+[m[32m    color: var(--orange);[m
+[32m+[m[32m    direction: ltr;[m
+[32m+[m[32m    font-family: Georgia, serif;[m
+[32m+[m[32m    font-size: 18px;[m
+[32m+[m[32m    line-height: 1.2;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.most-read-item a {[m
+[32m+[m[32m    font-size: 14px;[m
+[32m+[m[32m    font-weight: 600;[m
+[32m+[m[32m    line-height: 1.7;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.most-read-item a:hover {[m
+[32m+[m[32m    color: var(--teal);[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.latest-section {[m
+[32m+[m[32m    padding-top: 38px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.editorial-sections {[m
+[32m+[m[32m    border-bottom: 1px solid var(--line);[m
+[32m+[m[32m    padding: 34px 0 36px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.editorial-sections-grid {[m
+[32m+[m[32m    display: grid;[m
+[32m+[m[32m    gap: 0 22px;[m
+[32m+[m[32m    grid-template-columns: repeat(2, minmax(0, 1fr));[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.editorial-section-item {[m
+[32m+[m[32m    border-top: 3px solid var(--accent);[m
+[32m+[m[32m    min-width: 0;[m
+[32m+[m[32m    padding: 13px 0 0;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.editorial-section-label {[m
+[32m+[m[32m    align-items: center;[m
+[32m+[m[32m    color: var(--orange);[m
+[32m+[m[32m    display: flex;[m
+[32m+[m[32m    font-size: 11px;[m
+[32m+[m[32m    font-weight: 700;[m
+[32m+[m[32m    justify-content: space-between;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.editorial-section-label b {[m
+[32m+[m[32m    color: var(--muted);[m
+[32m+[m[32m    direction: ltr;[m
+[32m+[m[32m    font-family: Georgia, serif;[m
+[32m+[m[32m    font-size: 15px;[m
+[32m+[m[32m    font-weight: 400;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.editorial-section-item h3 {[m
+[32m+[m[32m    font-size: 17px;[m
+[32m+[m[32m    line-height: 1.55;[m
+[32m+[m[32m    margin: 9px 0 7px;[m
+[32m+[m[32m    overflow-wrap: anywhere;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.editorial-section-item h3 a:hover {[m
+[32m+[m[32m    color: var(--teal);[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.editorial-section-item p {[m
+[32m+[m[32m    color: var(--muted);[m
+[32m+[m[32m    font-size: 12px;[m
+[32m+[m[32m    line-height: 1.75;[m
+[32m+[m[32m    margin-bottom: 10px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.featured-column .editorial-sections {[m
+[32m+[m[32m    border-bottom: 0;[m
+[32m+[m[32m    padding-bottom: 0;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.featured-column .editorial-sections .subsection-heading {[m
+[32m+[m[32m    display: block;[m
+[32m+[m[32m    margin-bottom: 16px;[m
+[32m+[m[32m    padding-bottom: 8px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.featured-column .editorial-sections .subsection-heading span {[m
+[32m+[m[32m    display: block;[m
+[32m+[m[32m    margin-top: 3px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.section-more {[m
+[32m+[m[32m    color: var(--teal);[m
+[32m+[m[32m    font-size: 11px;[m
+[32m+[m[32m    font-weight: 700;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.section-more span {[m
+[32m+[m[32m    color: var(--orange);[m
+[32m+[m[32m    font-size: 15px;[m
+[32m+[m[32m    margin-right: 3px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.subsection-heading {[m
+[32m+[m[32m    align-items: baseline;[m
+[32m+[m[32m    border-bottom: 2px solid var(--ink);[m
+[32m+[m[32m    display: flex;[m
+[32m+[m[32m    gap: 16px;[m
+[32m+[m[32m    justify-content: space-between;[m
+[32m+[m[32m    margin-bottom: 22px;[m
+[32m+[m[32m    padding-bottom: 10px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.subsection-heading h2 {[m
+[32m+[m[32m    font-size: 25px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.subsection-heading span {[m
+[32m+[m[32m    color: var(--muted);[m
+[32m+[m[32m    font-size: 12px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.homepage-tools {[m
+[32m+[m[32m    align-items: center;[m
+[32m+[m[32m    display: flex;[m
+[32m+[m[32m    gap: 14px;[m
+[32m+[m[32m    margin-bottom: 12px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.homepage-tools label {[m
+[32m+[m[32m    color: var(--muted);[m
+[32m+[m[32m    flex: 0 0 auto;[m
+[32m+[m[32m    font-size: 12px;[m
+[32m+[m[32m    font-weight: 700;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.homepage-tools input {[m
+[32m+[m[32m    padding: 10px 14px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.category-links {[m
+[32m+[m[32m    align-items: center;[m
+[32m+[m[32m    border-bottom: 1px solid var(--line);[m
+[32m+[m[32m    display: flex;[m
+[32m+[m[32m    flex-wrap: wrap;[m
+[32m+[m[32m    gap: 8px 20px;[m
+[32m+[m[32m    margin-bottom: 25px;[m
+[32m+[m[32m    padding-bottom: 14px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.category-links-label {[m
+[32m+[m[32m    color: var(--muted);[m
+[32m+[m[32m    font-size: 12px;[m
+[32m+[m[32m    font-weight: 700;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.category-links a {[m
+[32m+[m[32m    border-bottom: 2px solid transparent;[m
+[32m+[m[32m    color: var(--teal);[m
+[32m+[m[32m    font-size: 14px;[m
+[32m+[m[32m    font-weight: 700;[m
+[32m+[m[32m    padding: 4px 0;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.category-links a:hover,[m
+[32m+[m[32m.category-links a.active {[m
+[32m+[m[32m    border-bottom-color: var(--orange);[m
+[32m+[m[32m    color: var(--ink);[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.archive-category-links {[m
+[32m+[m[32m    margin-bottom: 25px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.latest-story {[m
+[32m+[m[32m    border-top-width: 2px;[m
+[32m+[m[32m    display: flex;[m
+[32m+[m[32m    flex-direction: column;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.latest-story .news-image {[m
+[32m+[m[32m    aspect-ratio: 16 / 9;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.latest-story .card-body {[m
+[32m+[m[32m    padding: 16px 0 0;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.latest-story .card-footer {[m
+[32m+[m[32m    padding-top: 12px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.latest-story:hover,[m
+[32m+[m[32m.featured-story:hover,[m
+[32m+[m[32m.secondary-story:hover {[m
+[32m+[m[32m    box-shadow: none;[m
+[32m+[m[32m    transform: none;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.news-image-fallback img {[m
+[32m+[m[32m    height: 56px;[m
+[32m+[m[32m    object-fit: contain;[m
+[32m+[m[32m    opacity: .9;[m
+[32m+[m[32m    width: 56px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.news-image-fallback span {[m
+[32m+[m[32m    font-size: 13px;[m
+[32m+[m[32m    font-weight: 600;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.card-body {[m
+[32m+[m[32m    display: flex;[m
+[32m+[m[32m    flex: 1;[m
+[32m+[m[32m    flex-direction: column;[m
+[32m+[m[32m    padding: 20px 23px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.card-topline,[m
+[32m+[m[32m.card-footer,[m
+[32m+[m[32m.article-meta {[m
+[32m+[m[32m    align-items: center;[m
+[32m+[m[32m    color: var(--muted);[m
+[32m+[m[32m    display: flex;[m
+[32m+[m[32m    font-size: 11px;[m
+[32m+[m[32m    justify-content: space-between;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.card-topline,[m
+[32m+[m[32m.article-meta {[m
+[32m+[m[32m    flex-wrap: wrap;[m
+[32m+[m[32m    gap: 8px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.source-badge {[m
+[32m+[m[32m    align-items: center;[m
+[32m+[m[32m    background: #eaf0eb;[m
+[32m+[m[32m    border-radius: 4px;[m
+[32m+[m[32m    color: var(--teal);[m
+[32m+[m[32m    display: inline-flex;[m
+[32m+[m[32m    font-size: 12px;[m
+[32m+[m[32m    gap: 7px;[m
+[32m+[m[32m    padding: 4px 9px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.source-badge bdi {[m
+[32m+[m[32m    font-weight: 700;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.source-badge:hover,[m
+[32m+[m[32m.original-link:hover {[m
+[32m+[m[32m    text-decoration: underline;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.card-date {[m
+[32m+[m[32m    color: var(--muted);[m
+[32m+[m[32m    font-size: 11px;[m
+[32m+[m[32m    margin-top: 10px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.alert-tag {[m
+[32m+[m[32m    align-self: flex-start;[m
+[32m+[m[32m    background: #f6e4dc;[m
+[32m+[m[32m    color: #a34327;[m
+[32m+[m[32m    font-size: 10px;[m
+[32m+[m[32m    font-weight: 700;[m
+[32m+[m[32m    margin-top: 10px;[m
+[32m+[m[32m    padding: 2px 7px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.category {[m
+[32m+[m[32m    color: var(--accent, var(--orange));[m
+[32m+[m[32m    font-weight: 700;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.card-number {[m
+[32m+[m[32m    color: var(--muted);[m
+[32m+[m[32m    direction: ltr;[m
+[32m+[m[32m    font-family: Georgia, serif;[m
+[32m+[m[32m    font-size: 16px;[m
+[32m+[m[32m    line-height: 1;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.news-card h3 {[m
+[32m+[m[32m    font-size: 20px;[m
+[32m+[m[32m    line-height: 1.55;[m
+[32m+[m[32m    margin: 13px 0 10px;[m
+[32m+[m[32m    overflow-wrap: anywhere;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.news-card h2 {[m
+[32m+[m[32m    font-size: 20px;[m
+[32m+[m[32m    line-height: 1.55;[m
+[32m+[m[32m    margin: 13px 0 10px;[m
+[32m+[m[32m    overflow-wrap: anywhere;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.news-card h3 a:hover,[m
+[32m+[m[32m.news-card h2 a:hover {[m
+[32m+[m[32m    color: var(--teal);[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.card-language-controls,[m
+[32m+[m[32m.article-language-controls {[m
+[32m+[m[32m    align-items: center;[m
+[32m+[m[32m    display: flex;[m
+[32m+[m[32m    flex-wrap: wrap;[m
+[32m+[m[32m    gap: 5px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.card-language-controls {[m
+[32m+[m[32m    margin-top: 13px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.article-language-controls {[m
+[32m+[m[32m    color: var(--muted);[m
+[32m+[m[32m    font-size: 12px;[m
+[32m+[m[32m    margin-top: 22px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.language-button {[m
+[32m+[m[32m    background: transparent;[m
+[32m+[m[32m    border: 1px solid transparent;[m
+[32m+[m[32m    border-radius: 999px;[m
+[32m+[m[32m    color: var(--muted);[m
+[32m+[m[32m    cursor: pointer;[m
+[32m+[m[32m    font-family: inherit;[m
+[32m+[m[32m    font-size: 11px;[m
+[32m+[m[32m    padding: 2px 8px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.language-button:hover,[m
+[32m+[m[32m.language-button.active {[m
+[32m+[m[32m    background: #eaf0eb;[m
+[32m+[m[32m    border-color: #cfded7;[m
+[32m+[m[32m    color: var(--teal);[m
+[32m+[m[32m    font-weight: 700;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.card-summary {[m
+[32m+[m[32m    color: var(--muted);[m
+[32m+[m[32m    font-size: 13px;[m
+[32m+[m[32m    line-height: 1.8;[m
+[32m+[m[32m    margin-bottom: 22px;[m
+[32m+[m[32m    overflow-wrap: anywhere;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.translation-notice {[m
+[32m+[m[32m    background: #f6eddf;[m
+[32m+[m[32m    border-right: 2px solid var(--orange);[m
+[32m+[m[32m    color: #795227;[m
+[32m+[m[32m    font-size: 12px;[m
+[32m+[m[32m    line-height: 1.7;[m
+[32m+[m[32m    margin-bottom: 12px;[m
+[32m+[m[32m    padding: 7px 10px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.article-content > .translation-notice {[m
+[32m+[m[32m    font-size: 14px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.original-link {[m
+[32m+[m[32m    color: var(--teal);[m
+[32m+[m[32m    font-weight: 600;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.card-footer {[m
+[32m+[m[32m    border-top: 1px solid var(--line);[m
+[32m+[m[32m    margin-top: auto;[m
+[32m+[m[32m    padding-top: 15px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.card-actions,[m
+[32m+[m[32m.article-actions {[m
+[32m+[m[32m    display: flex;[m
+[32m+[m[32m    flex-wrap: wrap;[m
+[32m+[m[32m    gap: 8px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.card-actions {[m
+[32m+[m[32m    margin-top: 15px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.icon-action {[m
+[32m+[m[32m    background: transparent;[m
+[32m+[m[32m    border: 0;[m
+[32m+[m[32m    color: var(--muted);[m
+[32m+[m[32m    cursor: pointer;[m
+[32m+[m[32m    font-family: inherit;[m
+[32m+[m[32m    font-size: 11px;[m
+[32m+[m[32m    padding: 2px 0;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.icon-action:hover,[m
+[32m+[m[32m.icon-action.is-saved {[m
+[32m+[m[32m    color: var(--teal);[m
+[32m+[m[32m    font-weight: 700;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.read-link {[m
+[32m+[m[32m    color: var(--ink);[m
+[32m+[m[32m    font-weight: 700;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.read-link b {[m
+[32m+[m[32m    color: var(--orange);[m
+[32m+[m[32m    font-size: 18px;[m
+[32m+[m[32m    margin-right: 4px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.site-footer {[m
+[32m+[m[32m    background: var(--ink);[m
+[32m+[m[32m    color: #f4f1eb;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.footer-inner {[m
+[32m+[m[32m    min-height: 110px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.footer-copy {[m
+[32m+[m[32m    margin-right: auto;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.footer-nav {[m
+[32m+[m[32m    display: flex;[m
+[32m+[m[32m    flex-wrap: wrap;[m
+[32m+[m[32m    gap: 14px;[m
+[32m+[m[32m    margin-top: 3px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.footer-nav a {[m
+[32m+[m[32m    color: #d7ddd7;[m
+[32m+[m[32m    font-size: 11px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.footer-nav a:hover {[m
+     color: white;[m
+     text-decoration: underline;[m
+ }[m
+[36m@@ -908,44 +1387,171 @@[m [mh3 {[m
+     margin-bottom: 10px;[m
+ }[m
+ [m
+[31m-.policy-card h2 {[m
+[31m-    font-size: 22px;[m
+[31m-    line-height: 1.45;[m
+[32m+[m[32m.policy-card h2 {[m
+[32m+[m[32m    font-size: 22px;[m
+[32m+[m[32m    line-height: 1.45;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.policy-card > p:last-child {[m
+[32m+[m[32m    color: var(--muted);[m
+[32m+[m[32m    font-size: 14px;[m
+[32m+[m[32m    margin-top: 12px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.policy-card-featured > p:last-child {[m
+[32m+[m[32m    color: rgba(255, 255, 255, .8);[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.contact-panel {[m
+[32m+[m[32m    align-items: center;[m
+[32m+[m[32m    background: #e6efeb;[m
+[32m+[m[32m    display: flex;[m
+[32m+[m[32m    gap: 30px;[m
+[32m+[m[32m    justify-content: space-between;[m
+[32m+[m[32m    margin-top: 42px;[m
+[32m+[m[32m    padding: 32px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m@media (min-width: 801px) and (max-width: 1020px) {[m
+[32m+[m[32m    .news-grid {[m
+[32m+[m[32m        grid-template-columns: repeat(2, minmax(0, 1fr));[m
+[32m+[m[32m    }[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m@media (prefers-reduced-motion: reduce) {[m
+[32m+[m[32m    .news-card {[m
+[32m+[m[32m        transition: none;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .news-card:hover {[m
+[32m+[m[32m        transform: none;[m
+[32m+[m[32m    }[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.archive-toolbar {[m
+[32m+[m[32m    align-items: end;[m
+[32m+[m[32m    border-bottom: 1px solid var(--line);[m
+[32m+[m[32m    display: flex;[m
+[32m+[m[32m    gap: 24px;[m
+[32m+[m[32m    justify-content: space-between;[m
+[32m+[m[32m    margin-bottom: 18px;[m
+[32m+[m[32m    padding-bottom: 14px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.archive-toolbar .news-tools {[m
+[32m+[m[32m    align-items: center;[m
+[32m+[m[32m    display: flex;[m
+[32m+[m[32m    flex: 1;[m
+[32m+[m[32m    gap: 14px;[m
+[32m+[m[32m    margin-bottom: 0;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.archive-toolbar .news-tools label {[m
+[32m+[m[32m    color: var(--muted);[m
+[32m+[m[32m    flex: 0 0 auto;[m
+[32m+[m[32m    font-size: 12px;[m
+[32m+[m[32m    font-weight: 700;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.archive-toolbar .news-tools input {[m
+[32m+[m[32m    padding: 10px 14px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.archive-page-count {[m
+[32m+[m[32m    color: var(--muted);[m
+[32m+[m[32m    font-size: 12px;[m
+[32m+[m[32m    white-space: nowrap;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.archive-grid {[m
+[32m+[m[32m    grid-template-columns: repeat(4, minmax(0, 1fr));[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.archive-grid .news-card {[m
+[32m+[m[32m    min-height: 0;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.archive-grid .card-body {[m
+[32m+[m[32m    padding: 16px 18px 18px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.archive-grid .news-card h2 {[m
+[32m+[m[32m    font-size: 18px;[m
+[32m+[m[32m    line-height: 1.5;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.archive-grid .card-summary {[m
+[32m+[m[32m    font-size: 12px;[m
+[32m+[m[32m    line-height: 1.75;[m
+ }[m
+ [m
+[31m-.policy-card > p:last-child {[m
+[31m-    color: var(--muted);[m
+[31m-    font-size: 14px;[m
+[31m-    margin-top: 12px;[m
+[32m+[m[32m.archive-grid .card-footer {[m
+[32m+[m[32m    font-size: 11px;[m
+ }[m
+ [m
+[31m-.policy-card-featured > p:last-child {[m
+[31m-    color: rgba(255, 255, 255, .8);[m
+[32m+[m[32m.pagination {[m
+[32m+[m[32m    gap: 18px;[m
+ }[m
+ [m
+[31m-.contact-panel {[m
+[32m+[m[32m.pagination-pages {[m
+     align-items: center;[m
+[31m-    background: #e6efeb;[m
+     display: flex;[m
+[31m-    gap: 30px;[m
+[31m-    justify-content: space-between;[m
+[31m-    margin-top: 42px;[m
+[31m-    padding: 32px;[m
+[32m+[m[32m    gap: 6px;[m
+ }[m
+ [m
+[31m-@media (min-width: 801px) and (max-width: 1020px) {[m
+[31m-    .news-grid {[m
+[31m-        grid-template-columns: repeat(2, minmax(0, 1fr));[m
+[32m+[m[32m.pagination-pages a,[m
+[32m+[m[32m.pagination-current {[m
+[32m+[m[32m    align-items: center;[m
+[32m+[m[32m    border: 1px solid var(--line);[m
+[32m+[m[32m    display: inline-flex;[m
+[32m+[m[32m    height: 34px;[m
+[32m+[m[32m    justify-content: center;[m
+[32m+[m[32m    min-width: 34px;[m
+[32m+[m[32m    padding: 0 8px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.pagination-pages a:hover,[m
+[32m+[m[32m.pagination-current {[m
+[32m+[m[32m    background: var(--teal);[m
+[32m+[m[32m    border-color: var(--teal);[m
+[32m+[m[32m    color: white;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m@media (min-width: 801px) and (max-width: 1100px) {[m
+[32m+[m[32m    .archive-grid {[m
+[32m+[m[32m        grid-template-columns: repeat(3, minmax(0, 1fr));[m
+     }[m
+ }[m
+ [m
+[31m-@media (prefers-reduced-motion: reduce) {[m
+[31m-    .news-card {[m
+[31m-        transition: none;[m
+[32m+[m[32m@media (max-width: 800px) {[m
+[32m+[m[32m    .archive-toolbar {[m
+[32m+[m[32m        align-items: stretch;[m
+[32m+[m[32m        display: block;[m
+     }[m
+ [m
+[31m-    .news-card:hover {[m
+[31m-        transform: none;[m
+[32m+[m[32m    .archive-toolbar .news-tools {[m
+[32m+[m[32m        align-items: stretch;[m
+[32m+[m[32m        display: block;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .archive-toolbar .news-tools label {[m
+[32m+[m[32m        display: block;[m
+[32m+[m[32m        margin-bottom: 5px;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .archive-page-count {[m
+[32m+[m[32m        display: block;[m
+[32m+[m[32m        margin-top: 10px;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .archive-grid {[m
+[32m+[m[32m        grid-template-columns: 1fr;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .pagination {[m
+[32m+[m[32m        align-items: center;[m
+[32m+[m[32m        flex-wrap: wrap;[m
+[32m+[m[32m        justify-content: center;[m
+     }[m
+ }[m
+ [m
+[36m@@ -1068,3 +1674,352 @@[m [mh3 {[m
+         padding: 24px 20px;[m
+     }[m
+ }[m
+[32m+[m
+[32m+[m[32m@media (min-width: 801px) and (max-width: 1050px) {[m
+[32m+[m[32m    .main-nav {[m
+[32m+[m[32m        gap: 22px;[m
+[32m+[m[32m        margin-left: 28px;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .top-news-layout {[m
+[32m+[m[32m        grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .most-read {[m
+[32m+[m[32m        border-right: 0;[m
+[32m+[m[32m        border-top: 1px solid var(--line);[m
+[32m+[m[32m        grid-column: 1 / -1;[m
+[32m+[m[32m        padding-right: 0;[m
+[32m+[m[32m        padding-top: 22px;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .most-read ol {[m
+[32m+[m[32m        display: grid;[m
+[32m+[m[32m        gap: 0 22px;[m
+[32m+[m[32m        grid-template-columns: repeat(2, minmax(0, 1fr));[m
+[32m+[m[32m    }[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m@media (max-width: 800px) {[m
+[32m+[m[32m    .main-nav {[m
+[32m+[m[32m        gap: 17px;[m
+[32m+[m[32m        margin-left: 0;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .editorial-intro {[m
+[32m+[m[32m        align-items: start;[m
+[32m+[m[32m        display: block;[m
+[32m+[m[32m        padding-bottom: 27px;[m
+[32m+[m[32m        padding-top: 34px;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .editorial-intro h1 {[m
+[32m+[m[32m        font-size: 42px;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .editorial-intro > p {[m
+[32m+[m[32m        margin-top: 15px;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .breaking-news {[m
+[32m+[m[32m        min-height: 58px;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .media-rail {[m
+[32m+[m[32m        padding-bottom: 25px;[m
+[32m+[m[32m        padding-top: 24px;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .media-rail-heading {[m
+[32m+[m[32m        margin-bottom: 15px;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .media-rail-heading h2 {[m
+[32m+[m[32m        font-size: 18px;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .media-rail-note {[m
+[32m+[m[32m        font-size: 11px;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .media-rail-item {[m
+[32m+[m[32m        flex-basis: 142px;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .ticker-headlines {[m
+[32m+[m[32m        gap: 12px;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .ticker-headlines a {[m
+[32m+[m[32m        border-left: 0;[m
+[32m+[m[32m        flex: 0 0 82%;[m
+[32m+[m[32m        padding-left: 0;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .ticker-headlines a:not(:first-child) {[m
+[32m+[m[32m        display: none;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .top-news-layout {[m
+[32m+[m[32m        display: block;[m
+[32m+[m[32m        padding-bottom: 30px;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .featured-story {[m
+[32m+[m[32m        margin-bottom: 28px;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .featured-story .story-body {[m
+[32m+[m[32m        padding-left: 0;[m
+[32m+[m[32m        padding-right: 0;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .featured-story h3 {[m
+[32m+[m[32m        font-size: 28px;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .secondary-column {[m
+[32m+[m[32m        border-right: 0;[m
+[32m+[m[32m        border-top: 1px solid var(--line);[m
+[32m+[m[32m        gap: 20px;[m
+[32m+[m[32m        padding-right: 0;[m
+[32m+[m[32m        padding-top: 20px;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .secondary-story {[m
+[32m+[m[32m        display: grid;[m
+[32m+[m[32m        gap: 15px;[m
+[32m+[m[32m        grid-template-columns: minmax(120px, .8fr) minmax(0, 1.2fr);[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .secondary-story .story-body {[m
+[32m+[m[32m        padding-top: 0;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .secondary-story .card-summary,[m
+[32m+[m[32m    .secondary-story .card-footer .original-link {[m
+[32m+[m[32m        display: none;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .most-read {[m
+[32m+[m[32m        border-right: 0;[m
+[32m+[m[32m        border-top: 1px solid var(--line);[m
+[32m+[m[32m        margin-top: 25px;[m
+[32m+[m[32m        padding-right: 0;[m
+[32m+[m[32m        padding-top: 22px;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .latest-section {[m
+[32m+[m[32m        padding-top: 28px;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .editorial-sections {[m
+[32m+[m[32m        padding: 27px 0 29px;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .editorial-sections-grid {[m
+[32m+[m[32m        gap: 22px 16px;[m
+[32m+[m[32m        grid-template-columns: repeat(2, minmax(0, 1fr));[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .subsection-heading {[m
+[32m+[m[32m        align-items: start;[m
+[32m+[m[32m        display: block;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .subsection-heading span {[m
+[32m+[m[32m        display: block;[m
+[32m+[m[32m        margin-top: 3px;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .homepage-tools {[m
+[32m+[m[32m        align-items: stretch;[m
+[32m+[m[32m        display: block;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .homepage-tools label {[m
+[32m+[m[32m        display: block;[m
+[32m+[m[32m        margin-bottom: 5px;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .latest-story .card-body {[m
+[32m+[m[32m        padding-top: 13px;[m
+[32m+[m[32m    }[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m::selection {[m
+[32m+[m[32m    background: var(--orange);[m
+[32m+[m[32m    color: white;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.skip-link {[m
+[32m+[m[32m    background: var(--ink);[m
+[32m+[m[32m    color: white;[m
+[32m+[m[32m    font-size: 13px;[m
+[32m+[m[32m    left: 16px;[m
+[32m+[m[32m    padding: 9px 14px;[m
+[32m+[m[32m    position: fixed;[m
+[32m+[m[32m    top: -80px;[m
+[32m+[m[32m    z-index: 10;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.skip-link:focus {[m
+[32m+[m[32m    top: 16px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mbody {[m
+[32m+[m[32m    -webkit-font-smoothing: antialiased;[m
+[32m+[m[32m    text-rendering: optimizeLegibility;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32ma:focus-visible,[m
+[32m+[m[32mbutton:focus-visible,[m
+[32m+[m[32minput:focus-visible,[m
+[32m+[m[32msummary:focus-visible {[m
+[32m+[m[32m    outline: 3px solid rgba(217, 93, 57, .45);[m
+[32m+[m[32m    outline-offset: 3px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.site-header {[m
+[32m+[m[32m    position: relative;[m
+[32m+[m[32m    z-index: 2;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.main-nav a {[m
+[32m+[m[32m    padding: 6px 0;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.main-nav a.active::after {[m
+[32m+[m[32m    bottom: -24px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.news-status {[m
+[32m+[m[32m    background: #f6eddf;[m
+[32m+[m[32m    border-right: 3px solid var(--orange);[m
+[32m+[m[32m    color: #795227;[m
+[32m+[m[32m    font-size: 13px;[m
+[32m+[m[32m    margin: -8px 0 20px;[m
+[32m+[m[32m    padding: 10px 13px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.source-filters {[m
+[32m+[m[32m    align-items: center;[m
+[32m+[m[32m    scrollbar-width: thin;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.source-btn {[m
+[32m+[m[32m    min-height: 40px;[m
+[32m+[m[32m    transition: background .2s ease, border-color .2s ease, color .2s ease;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.source-btn:hover {[m
+[32m+[m[32m    border-color: var(--teal);[m
+[32m+[m[32m    color: var(--teal);[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.source-btn.active:hover {[m
+[32m+[m[32m    background: var(--ink);[m
+[32m+[m[32m    color: white;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.news-image img {[m
+[32m+[m[32m    transition: transform .35s ease;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.news-card:hover .news-image img {[m
+[32m+[m[32m    transform: scale(1.025);[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.featured-story:hover .news-image img,[m
+[32m+[m[32m.secondary-story:hover .news-image img,[m
+[32m+[m[32m.latest-story:hover .news-image img {[m
+[32m+[m[32m    transform: scale(1.025);[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.article-content {[m
+[32m+[m[32m    padding-top: 8px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.article-content .article-meta {[m
+[32m+[m[32m    border-bottom: 1px solid var(--line);[m
+[32m+[m[32m    padding-bottom: 14px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.article-image {[m
+[32m+[m[32m    background: var(--line);[m
+[32m+[m[32m    overflow: hidden;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.article-image img {[m
+[32m+[m[32m    aspect-ratio: 16 / 9;[m
+[32m+[m[32m    object-fit: cover;[m
+[32m+[m[32m    width: 100%;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.article-source-link:hover,[m
+[32m+[m[32m.back-link:hover {[m
+[32m+[m[32m    color: var(--orange);[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.contact-unavailable {[m
+[32m+[m[32m    color: var(--muted);[m
+[32m+[m[32m    font-size: 13px;[m
+[32m+[m[32m    font-weight: 600;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.site-footer .logo {[m
+[32m+[m[32m    opacity: .92;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.site-footer .logo:focus-visible {[m
+[32m+[m[32m    outline-color: #f2b36b;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m@media (max-width: 800px) {[m
+[32m+[m[32m    .container {[m
+[32m+[m[32m        width: min(100% - 28px, 600px);[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .main-nav a.active::after {[m
+[32m+[m[32m        bottom: -7px;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .source-filters {[m
+[32m+[m[32m        flex-wrap: nowrap;[m
+[32m+[m[32m        margin-left: -2px;[m
+[32m+[m[32m        margin-right: -2px;[m
+[32m+[m[32m        overflow-x: auto;[m
+[32m+[m[32m        padding-bottom: 5px;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .category-links {[m
+[32m+[m[32m        gap: 6px 16px;[m
+[32m+[m[32m        overflow-x: auto;[m
+[32m+[m[32m        flex-wrap: nowrap;[m
+[32m+[m[32m        white-space: nowrap;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .category-links-label {[m
+[32m+[m[32m        flex: 0 0 auto;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .source-btn {[m
+[32m+[m[32m        flex: 0 0 auto;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .article-content .article-meta {[m
+[32m+[m[32m        align-items: flex-start;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    .article-content > p:not(.article-lead) {[m
+[32m+[m[32m        font-size: 16px;[m
+[32m+[m[32m    }[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m@media (prefers-reduced-motion: reduce) {[m
+[32m+[m[32m    .news-image img,[m
+[32m+[m[32m    .news-card:hover .news-image img {[m
+[32m+[m[32m        transition: none;[m
+[32m+[m[32m        transform: none;[m
+[32m+[m[32m    }[m
+[32m+[m[32m}[m
+[1mdiff --git a/tests/__pycache__/test_news_content.cpython-314.pyc b/tests/__pycache__/test_news_content.cpython-314.pyc[m
+[1mindex a8c8a7f..d1855ce 100644[m
+Binary files a/tests/__pycache__/test_news_content.cpython-314.pyc and b/tests/__pycache__/test_news_content.cpython-314.pyc differ
+[1mdiff --git a/tests/__pycache__/test_news_reliability.cpython-314.pyc b/tests/__pycache__/test_news_reliability.cpython-314.pyc[m
+[1mindex 0933130..a2d5d0f 100644[m
+Binary files a/tests/__pycache__/test_news_reliability.cpython-314.pyc and b/tests/__pycache__/test_news_reliability.cpython-314.pyc differ
+[1mdiff --git a/tests/test_news_content.py b/tests/test_news_content.py[m
+[1mindex fe46214..c60eb43 100644[m
+[1m--- a/tests/test_news_content.py[m
+[1m+++ b/tests/test_news_content.py[m
+[36m@@ -35,23 +35,24 @@[m [mclass NewsContentTests(unittest.TestCase):[m
+                      published_parsed=datetime(2026, 9, 9, hour, index, tzinfo=timezone.utc).timetuple())[m
+                 for index in range(count)][m
+ [m
+[31m-    def test_fifteen_articles_are_selected_from_each_source_in_date_order(self):[m
+[31m-        items = sum((self.entries(source, 9, hour) for source, hour in [('A', 10), ('B', 11), ('C', 12)]), [])[m
+[32m+[m[32m    def test_news_limit_is_balanced_across_sources_in_date_order(self):[m
+[32m+[m[32m        items = sum((self.entries(source, 15, hour) for source, hour in [('A', 10), ('B', 11), ('C', 12)]), [])[m
+         selected = app.select_news_entries(items)[m
+[31m-        self.assertEqual(len(selected), 15)[m
+[31m-        self.assertEqual(Counter(item['source_name'] for item in selected), {'A': 5, 'B': 5, 'C': 5})[m
+[32m+[m[32m        self.assertEqual(len(selected), app.NEWS_LIMIT)[m
+[32m+[m[32m        self.assertEqual(Counter(item['source_name'] for item in selected), {'A': 12, 'B': 12, 'C': 12})[m
+         stamps = [app.get_news_timestamp(item) for item in selected][m
+         self.assertEqual(stamps, sorted(stamps, reverse=True))[m
+         self.assertEqual([item['title'] for item in selected if item['source_name'] == 'A'],[m
+[31m-                         [f'A news {index}' for index in range(8, 3, -1)])[m
+[32m+[m[32m                 [f'A news {index}' for index in range(14, 2, -1)])[m
+ [m
+     def test_missing_source_places_are_filled_and_duplicates_do_not_count(self):[m
+         items = self.entries('A', 10) + self.entries('B', 10)[m
+         items += [dict(items[0], source_name='C', title=' A NEWS 0 ')][m
+         selected = app.select_news_entries(items)[m
+[31m-        self.assertEqual(len(selected), 15)[m
+[31m-        self.assertEqual(len({item['title'].strip().casefold() for item in selected}), 15)[m
+[31m-        self.assertEqual(len(app.select_news_entries(self.entries('A', 20))), 15)[m
+[32m+[m[32m        unique_titles = {item['title'].strip().casefold() for item in items}[m
+[32m+[m[32m        self.assertEqual(len(selected), min(app.NEWS_LIMIT, len(unique_titles)))[m
+[32m+[m[32m        self.assertEqual(len({item['title'].strip().casefold() for item in selected}), len(selected))[m
+[32m+[m[32m        self.assertEqual(len(app.select_news_entries(self.entries('A', 20))), min(app.NEWS_LIMIT, 20))[m
+ [m
+     def test_extracts_real_media_rss_and_enclosure_formats(self):[m
+         for media in ('<media:content url="https://cdn.example.com/photo.jpg" medium="image"/>',[m
+[36m@@ -159,7 +160,10 @@[m [mclass NewsContentTests(unittest.TestCase):[m
+             client = app.app.test_client()[m
+             page = BeautifulSoup(client.get('/').data, 'html.parser')[m
+             self.assertEqual(len(page.select('.news-card')), app.HOME_PAGE_SIZE)[m
+[31m-            self.assertEqual(page.select_one('.article-count').get_text(strip=True), '9 من 15 خبرًا')[m
+[32m+[m[32m            self.assertEqual([m
+[32m+[m[32m                page.select_one('.article-count').get_text(strip=True),[m
+[32m+[m[32m                f'{app.HOME_PAGE_SIZE} من {len(app._news_cache)} خبرًا',[m
+[32m+[m[32m            )[m
+             self.assertEqual(len(page.select('.card-image')), 0)[m
+             self.assertTrue({badge.get_text() for badge in page.select('.source-badge bdi')})[m
+             client.get('/category/netherlands')[m
+[1mdiff --git a/tests/test_news_reliability.py b/tests/test_news_reliability.py[m
+[1mindex 2f6fa7a..04b4293 100644[m
+[1m--- a/tests/test_news_reliability.py[m
+[1m+++ b/tests/test_news_reliability.py[m
+[36m@@ -83,7 +83,7 @@[m [mclass NewsReliabilityTests(unittest.TestCase):[m
+         with patch.object(app.time, 'monotonic', return_value=retry_time), \[m
+                 patch.object(app, 'fetch_news', return_value=SimpleNamespace(entries=[self.item()])) as fetch:[m
+             app.load_news()[m
+[31m-        self.assertEqual(fetch.call_count, 3)[m
+[32m+[m[32m        self.assertEqual(fetch.call_count, len(app.RSS_SOURCES))[m
+         self.assertEqual(app._news_status, '')[m
+ [m
+     def test_one_failed_source_keeps_its_previous_items(self):[m
+[36m@@ -100,7 +100,7 @@[m [mclass NewsReliabilityTests(unittest.TestCase):[m
+             return feed(url)[m
+         with patch.object(app, 'fetch_news', side_effect=partial), self.assertLogs(app.app.logger, level='WARNING'):[m
+             current = app.load_news()[m
+[31m-        self.assertEqual(len(current), 15)[m
+[32m+[m[32m        self.assertEqual(len(current), app.NEWS_LIMIT)[m
+         self.assertEqual({item['id'] for item in old}, {item['id'] for item in current})[m
+ [m
+     def test_previous_article_link_survives_refresh_without_another_fetch(self):[m
+[36m@@ -140,7 +140,7 @@[m [mclass NewsReliabilityTests(unittest.TestCase):[m
+                 finally:[m
+                     release.set()[m
+                 self.assertEqual(pending.result(timeout=3)[0]['title'], 'خبر بعد التحديث')[m
+[31m-            self.assertEqual(fetch.call_count, 3)[m
+[32m+[m[32m            self.assertEqual(fetch.call_count, len(app.RSS_SOURCES))[m
+ [m
+     def test_translation_timeout_stops_repeated_requests_and_cached_success_still_works(self):[m
+         with patch.object(app, 'NewsTranslator') as translator:[m

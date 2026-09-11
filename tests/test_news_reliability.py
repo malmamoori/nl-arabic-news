@@ -83,7 +83,7 @@ class NewsReliabilityTests(unittest.TestCase):
         with patch.object(app.time, 'monotonic', return_value=retry_time), \
                 patch.object(app, 'fetch_news', return_value=SimpleNamespace(entries=[self.item()])) as fetch:
             app.load_news()
-        self.assertEqual(fetch.call_count, 3)
+        self.assertEqual(fetch.call_count, len(app.RSS_SOURCES))
         self.assertEqual(app._news_status, '')
 
     def test_one_failed_source_keeps_its_previous_items(self):
@@ -100,7 +100,7 @@ class NewsReliabilityTests(unittest.TestCase):
             return feed(url)
         with patch.object(app, 'fetch_news', side_effect=partial), self.assertLogs(app.app.logger, level='WARNING'):
             current = app.load_news()
-        self.assertEqual(len(current), 15)
+        self.assertEqual(len(current), app.NEWS_LIMIT)
         self.assertEqual({item['id'] for item in old}, {item['id'] for item in current})
 
     def test_previous_article_link_survives_refresh_without_another_fetch(self):
@@ -140,7 +140,7 @@ class NewsReliabilityTests(unittest.TestCase):
                 finally:
                     release.set()
                 self.assertEqual(pending.result(timeout=3)[0]['title'], 'خبر بعد التحديث')
-            self.assertEqual(fetch.call_count, 3)
+            self.assertEqual(fetch.call_count, len(app.RSS_SOURCES))
 
     def test_translation_timeout_stops_repeated_requests_and_cached_success_still_works(self):
         with patch.object(app, 'NewsTranslator') as translator:

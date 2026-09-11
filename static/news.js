@@ -120,17 +120,33 @@
     const searchInput = document.getElementById("newsSearch");
     const sourceButtons = document.querySelectorAll(".source-btn");
     const newsCards = document.querySelectorAll(".news-card");
+    const newsResultsStatus = document.querySelector("[data-news-results]");
     let activeSource = "all";
 
+    const normalizeSearchText = (value) => (value || "")
+        .toLocaleLowerCase()
+        .replace(/[\u064B-\u065F\u0670]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+
     const filterNews = () => {
-        if (!searchInput) return;
-        const searchValue = searchInput.value.toLocaleLowerCase();
+        const searchValue = normalizeSearchText(searchInput?.value);
+        let visibleCount = 0;
         newsCards.forEach((card) => {
-            const text = card.innerText.toLocaleLowerCase();
-            const matchesSearch = text.includes(searchValue);
-            const matchesSource = activeSource === "all" || card.dataset.source === activeSource;
-            card.hidden = !(matchesSearch && matchesSource);
+            const text = normalizeSearchText(card.textContent);
+            const source = normalizeSearchText(card.dataset.source);
+            const matchesSearch = !searchValue || text.includes(searchValue);
+            const matchesSource = activeSource === "all" || source === normalizeSearchText(activeSource);
+            const isVisible = matchesSearch && matchesSource;
+            card.hidden = !isVisible;
+            if (isVisible) visibleCount += 1;
         });
+        if (newsResultsStatus) {
+            newsResultsStatus.textContent = visibleCount
+                ? `${visibleCount} خبر متاح`
+                : "لا توجد أخبار مطابقة لبحثك.";
+            newsResultsStatus.hidden = visibleCount > 0;
+        }
     };
 
     if (searchInput) searchInput.addEventListener("input", filterNews);
@@ -142,6 +158,7 @@
             filterNews();
         });
     });
+    filterNews();
 
     const notifyRelevantStory = () => {
         if (!("Notification" in window) || Notification.permission !== "granted") return false;

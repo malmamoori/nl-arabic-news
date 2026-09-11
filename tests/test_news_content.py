@@ -35,23 +35,24 @@ class NewsContentTests(unittest.TestCase):
                      published_parsed=datetime(2026, 9, 9, hour, index, tzinfo=timezone.utc).timetuple())
                 for index in range(count)]
 
-    def test_fifteen_articles_are_selected_from_each_source_in_date_order(self):
-        items = sum((self.entries(source, 9, hour) for source, hour in [('A', 10), ('B', 11), ('C', 12)]), [])
+    def test_news_limit_is_balanced_across_sources_in_date_order(self):
+        items = sum((self.entries(source, 15, hour) for source, hour in [('A', 10), ('B', 11), ('C', 12)]), [])
         selected = app.select_news_entries(items)
-        self.assertEqual(len(selected), 15)
-        self.assertEqual(Counter(item['source_name'] for item in selected), {'A': 5, 'B': 5, 'C': 5})
+        self.assertEqual(len(selected), app.NEWS_LIMIT)
+        self.assertEqual(Counter(item['source_name'] for item in selected), {'A': 12, 'B': 12, 'C': 12})
         stamps = [app.get_news_timestamp(item) for item in selected]
         self.assertEqual(stamps, sorted(stamps, reverse=True))
         self.assertEqual([item['title'] for item in selected if item['source_name'] == 'A'],
-                         [f'A news {index}' for index in range(8, 3, -1)])
+                 [f'A news {index}' for index in range(14, 2, -1)])
 
     def test_missing_source_places_are_filled_and_duplicates_do_not_count(self):
         items = self.entries('A', 10) + self.entries('B', 10)
         items += [dict(items[0], source_name='C', title=' A NEWS 0 ')]
         selected = app.select_news_entries(items)
-        self.assertEqual(len(selected), 15)
-        self.assertEqual(len({item['title'].strip().casefold() for item in selected}), 15)
-        self.assertEqual(len(app.select_news_entries(self.entries('A', 20))), 15)
+        unique_titles = {item['title'].strip().casefold() for item in items}
+        self.assertEqual(len(selected), min(app.NEWS_LIMIT, len(unique_titles)))
+        self.assertEqual(len({item['title'].strip().casefold() for item in selected}), len(selected))
+        self.assertEqual(len(app.select_news_entries(self.entries('A', 20))), min(app.NEWS_LIMIT, 20))
 
     def test_extracts_real_media_rss_and_enclosure_formats(self):
         for media in ('<media:content url="https://cdn.example.com/photo.jpg" medium="image"/>',
@@ -159,7 +160,10 @@ class NewsContentTests(unittest.TestCase):
             client = app.app.test_client()
             page = BeautifulSoup(client.get('/').data, 'html.parser')
             self.assertEqual(len(page.select('.news-card')), app.HOME_PAGE_SIZE)
-            self.assertEqual(page.select_one('.article-count').get_text(strip=True), '9 من 15 خبرًا')
+            self.assertEqual(
+                page.select_one('.article-count').get_text(strip=True),
+                f'{app.HOME_PAGE_SIZE} من {len(app._news_cache)} خبرًا',
+            )
             self.assertEqual(len(page.select('.card-image')), 0)
             self.assertTrue({badge.get_text() for badge in page.select('.source-badge bdi')})
             client.get('/category/netherlands')
