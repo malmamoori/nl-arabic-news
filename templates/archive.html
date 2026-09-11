@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+    <a class="skip-link" href="#main-content">تخطى إلى المحتوى</a>
     <header class="site-header">
         <div class="container header-inner">
             {% include '_logo.html' %}
@@ -23,38 +24,42 @@
             </nav>
             <div class="header-mark" aria-hidden="true">
                 <img src="{{ url_for('static', filename='brand/nl-bilarabi-icon.png') }}" alt="" width="40" height="40">
-            </div>
-        </div>
+                </div>
     </header>
 
-    <main class="container archive-page">
+    <main class="container archive-page" id="main-content">
         <div class="page-heading">
             <p class="eyebrow">كل ما فاتك</p>
             <h1>أرشيف الأخبار</h1>
-            <p>تصفّح {{ total_news }} خبرًا من المصادر التي نتابعها، تسعة أخبار في كل صفحة.</p>
+            <p>تصفّح {{ total_news }} خبرًا من المصادر التي نتابعها، {{ page_size }} خبرًا في كل صفحة.</p>
         </div>
 
         {% if news_status %}
         <p class="news-status" role="status">{{ news_status }}</p>
         {% endif %}
 
-        <div class="news-tools">
+        <div class="archive-toolbar">
+            <div class="news-tools">
+                <label for="newsSearch">ابحث داخل الأرشيف</label>
             <input type="text" id="newsSearch" placeholder="ابحث في هذه الصفحة..." aria-label="ابحث في الأخبار">
+            </div>
+            <span class="archive-page-count">صفحة {{ current_page }} من {{ total_pages }}</span>
         </div>
 
-        <div class="source-filters" aria-label="فلترة حسب المصدر">
-            <button class="source-btn active" data-source="all" type="button">الكل</button>
-            {% for source in news|map(attribute='source')|unique %}
-            <button class="source-btn" data-source="{{ source }}" type="button">{{ source }}</button>
+        <nav class="category-links archive-category-links" aria-label="تصنيفات الأخبار">
+            <span class="category-links-label">تصفح حسب التصنيف</span>
+            {% for slug, label in categories.items() %}
+            <a href="{{ url_for('category', slug=slug) }}">{{ label }}</a>
             {% endfor %}
-        </div>
+            </nav>
+        <p class="filter-results-status" data-news-results role="status" aria-live="polite" hidden></p>
 
-        <div class="news-grid">
+        <div class="news-grid archive-grid">
             {% for item in news %}
             <article class="news-card" data-source="{{ item.source }}" data-article-id="{{ item.id }}" data-alert-topics="{{ item.alert_topics|join(',') }}" style="--accent: {{ item.accent }}">
                 {% if item.image %}
                 <div class="news-image card-image">
-                    <img src="{{ item.image }}" alt="" width="640" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+                    <img src="{{ image_url(item.image) }}" alt="{{ item.title }}" width="640" height="360" loading="lazy" decoding="async" referrerpolicy="no-referrer">
                 </div>
                 {% else %}
                 <div class="news-image news-image-fallback" aria-hidden="true">
@@ -65,21 +70,24 @@
                 <div class="card-body">
                     <div class="card-topline">
                         <a class="source-badge" href="{{ item.link }}" target="_blank" rel="noopener noreferrer"><span>المصدر</span> <bdi>{{ item.source }}</bdi></a>
-                        <span class="card-number" aria-hidden="true">{{ '%02d'|format(loop.index + ((current_page - 1) * 9)) }}</span>
+                        <span class="card-number" aria-hidden="true">{{ '%02d'|format(loop.index + ((current_page - 1) * page_size)) }}</span>
                     </div>
                     <p class="card-date">{{ item.date }}</p>
                     {% if item.alert_topics %}<span class="alert-tag">تنبيه مهم</span>{% endif %}
-                    <div class="card-language-controls"{% if not item.has_original_variant %} hidden{% endif %}>
+                    <div class="card-language-controls">
                         <button class="language-button active" type="button" data-language="arabic">العربية</button>
                         <button class="language-button" type="button" data-language="original">{{ item.source_language|upper }} الأصلية</button>
+                        <button class="language-button" type="button" data-language="easy-dutch">Makkelijke taal</button>
                     </div>
                     <h2 class="language-content" data-language-content="arabic" dir="auto"><a href="{{ url_for('article', article_id=item.id) }}">{{ item.title }}</a></h2>
                     {% if item.has_original_variant %}
                     <h2 class="language-content" data-language-content="original" dir="auto" hidden><a href="{{ url_for('article', article_id=item.id) }}">{{ item.original_title }}</a></h2>
                     {% endif %}
+                    <h2 class="language-content" data-language-content="easy-dutch" dir="auto" hidden><a href="{{ url_for('article', article_id=item.id) }}">{{ item.easy_dutch_title }}</a></h2>
                     {% if item.translation_notice %}<p class="translation-notice">{{ item.translation_notice }}</p>{% endif %}
                     <p class="card-summary language-content" data-language-content="arabic" dir="auto">{{ item.summary }}</p>
                     {% if item.has_original_variant %}<p class="card-summary language-content" data-language-content="original" dir="auto" hidden>{{ item.original_summary|truncate(320, True, '…') }}</p>{% endif %}
+                    <p class="card-summary language-content" data-language-content="easy-dutch" dir="auto" hidden>{{ item.easy_dutch_summary }}</p>
                     <div class="card-footer">
                         <a class="original-link" href="{{ item.link }}" target="_blank" rel="noopener noreferrer">الخبر الأصلي <span aria-hidden="true">↗</span></a>
                         <a class="read-link" href="{{ url_for('article', article_id=item.id) }}">اقرأ المزيد <b aria-hidden="true">←</b></a>
@@ -96,7 +104,15 @@
         {% if total_pages > 1 %}
         <nav class="pagination" aria-label="صفحات الأرشيف">
             {% if current_page > 1 %}<a href="{{ url_for('archive', page=current_page - 1) }}">→ الأحدث</a>{% endif %}
-            <span>صفحة {{ current_page }} من {{ total_pages }}</span>
+            <div class="pagination-pages">
+                {% for page_number in range(1, total_pages + 1) %}
+                {% if page_number == current_page %}
+                <span class="pagination-current" aria-current="page">{{ page_number }}</span>
+                {% else %}
+                <a href="{{ url_for('archive', page=page_number) }}">{{ page_number }}</a>
+                {% endif %}
+                {% endfor %}
+            </div>
             {% if current_page < total_pages %}<a href="{{ url_for('archive', page=current_page + 1) }}">الأقدم ←</a>{% endif %}
         </nav>
         {% endif %}

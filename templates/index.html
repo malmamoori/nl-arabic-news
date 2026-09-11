@@ -40,9 +40,8 @@
 
 
 <body>
+    <a class="skip-link" href="#main-content">تخطى إلى المحتوى</a>
 
-
-    <!-- HEADER -->
 
     <header class="site-header">
 
@@ -63,9 +62,9 @@
                     الرئيسية
                 </a>
 
-                <a href="#latest-news">
-                    آخر الأخبار
-                </a>
+                <a href="{{ url_for('category', slug='general') }}">عام</a>
+
+                <a href="{{ url_for('category', slug='sport') }}">رياضة</a>
 
                 <a href="{{ url_for('archive') }}">الأرشيف</a>
 
@@ -86,80 +85,27 @@
 
 
 
-    <main>
-
-
-        <!-- HERO -->
-
-        <section class="hero container">
-
-            <div class="hero-copy">
-
-                <p class="eyebrow">
-                    من قلب هولندا
-                </p>
-
-                <h1>
-                    أخبار هولندا
-                    <br>
-                    <em>باللغة العربية</em>
-                </h1>
-
-                <p class="hero-intro">
-                    قراءة أوضح لما يحدث حولك.
-                    أخبار وتحديثات عملية للعرب
-                    المقيمين في هولندا.
-                </p>
-
-            </div>
-
-
-            <div class="hero-note">
-
-                <span class="note-line"></span>
-
-                <p>
-                    هولندا
-                    <br>
-                    <strong>NL بالعربي</strong>
-                </p>
-
-                <p class="note-small">
-                    نختصر لك المهم
-                    <br>
-                    بكل وضوح.
-                </p>
-
-            </div>
-
-        </section>
-
-
-
-        <!-- BREAKING NEWS -->
-
+    <main class="homepage-main" id="main-content">
         <div class="ticker-wrap">
-
             <div class="container breaking-news">
-
-                <span class="ticker-label">
-                    مهم الآن
-                </span>
-
-                <p>
-                    دليلك اليومي لفهم الأخبار
-                    والإجراءات التي تمس حياتك
-                    في هولندا.
-                </p>
-
+                <span class="ticker-label">مهم الآن</span>
+                <div class="ticker-headlines" aria-label="أهم الأخبار">
+                    {% for item in news[:4] %}
+                    <a href="{{ url_for('article', article_id=item.id) }}">{{ item.title }}</a>
+                    {% endfor %}
+                </div>
             </div>
-
         </div>
 
-
+        <section class="container editorial-intro" aria-labelledby="homeTitle">
+            <div>
+                <p class="eyebrow">من قلب هولندا</p>
+                <h1 id="homeTitle">أخبار هولندا <em>بالعربية</em></h1>
+            </div>
+            <p>مختارات يومية واضحة ومباشرة، مع روابط المصادر الأصلية لكل خبر.</p>
+        </section>
 
         <!-- IMPORTANT ALERTS -->
-
         <section class="container alerts-section" id="alerts" aria-labelledby="alertsTitle">
             <div class="alerts-copy">
                 <p class="eyebrow">ابقَ على اطلاع</p>
@@ -184,173 +130,187 @@
 
 
 
-        <!-- NEWS -->
-
-        <section
-            class="container news-section"
-            id="latest-news"
-        >
-
-            <div class="section-heading">
-
+        <section class="container news-section" id="latest-news" aria-labelledby="latestNewsTitle">
+            <div class="section-heading homepage-heading">
                 <div>
+                    <p class="eyebrow">مختارات التحرير</p>
+                    <h2 id="latestNewsTitle">آخر الأخبار</h2>
+                </div>
+                <span class="article-count">{{ news|length }} من {{ total_news }} خبرًا</span>
+            </div>
 
-                    <p class="eyebrow">
-                        مختارات التحرير
-                    </p>
+            {% if news_status %}<p class="news-status" role="status">{{ news_status }}</p>{% endif %}
 
-                    <h2>
-                        آخر الأخبار
-                    </h2>
+            <div class="news-tools homepage-tools">
+                <label for="newsSearch">البحث في الأخبار</label>
+                <input type="text" id="newsSearch" placeholder="ابحث عن خبر..." aria-label="ابحث عن خبر">
+            </div>
+            <nav class="category-links" aria-label="تصنيفات الأخبار">
+                <span class="category-links-label">تصفح حسب التصنيف</span>
+                {% for slug, label in categories.items() %}
+                {% if slug != 'general' %}
+                <a href="{{ url_for('category', slug=slug) }}"{% if request.path == url_for('category', slug=slug) %} class="active" aria-current="page"{% endif %}>{{ label }}</a>
+                {% endif %}
+                {% endfor %}
+            </nav>
+            <p class="filter-results-status" data-news-results role="status" aria-live="polite" hidden></p>
 
+            {% macro story_image(item, eager=false) %}
+                {% if item.image %}
+                <div class="news-image card-image">
+                    <img src="{{ image_url(item.image) }}" alt="{{ item.title }}" width="960" height="540" loading="lazy" {% if eager %}fetchpriority="high"{% endif %} decoding="async" referrerpolicy="no-referrer">
+                </div>
+                {% else %}
+                <div class="news-image news-image-fallback" aria-hidden="true">
+                    <img src="{{ url_for('static', filename='brand/nl-bilarabi-icon.png') }}" alt="" width="72" height="72">
+                    <span>{{ item.source }}</span>
+                </div>
+                {% endif %}
+            {% endmacro %}
+
+            {% macro story_meta(item) %}
+                <div class="card-topline">
+                    <a class="source-badge" href="{{ item.link }}" target="_blank" rel="noopener noreferrer"><span>المصدر</span> <bdi>{{ item.source }}</bdi></a>
+                    <span class="card-date">{{ item.date }}</span>
+                </div>
+            {% endmacro %}
+
+            {% macro language_controls(item) %}
+                <div class="card-language-controls">
+                    <button class="language-button active" type="button" data-language="arabic">العربية</button>
+                    <button class="language-button" type="button" data-language="easy-dutch">Makkelijke taal</button>
+                </div>
+            {% endmacro %}
+
+            {% macro story_actions(item) %}
+                <div class="card-footer">
+                    <a class="original-link" href="{{ item.link }}" target="_blank" rel="noopener noreferrer">الخبر الأصلي <span aria-hidden="true">↗</span></a>
+                    <a class="read-link" href="{{ url_for('article', article_id=item.id) }}">اقرأ المزيد <b aria-hidden="true">←</b></a>
+                </div>
+            {% endmacro %}
+
+            {% if news %}
+            <section class="top-news-layout" aria-label="أهم الأخبار">
+                <div class="featured-column">
+                    <article class="featured-story news-card" data-source="{{ news[0].source }}" data-article-id="{{ news[0].id }}" data-alert-topics="{{ news[0].alert_topics|join(',') }}" style="--accent: {{ news[0].accent }}">
+                        {{ story_image(news[0], true) }}
+                        <div class="story-body">
+                            {{ story_meta(news[0]) }}
+                            {% if news[0].alert_topics %}<span class="alert-tag">تنبيه مهم</span>{% endif %}
+                            {{ language_controls(news[0]) }}
+                            <h3 class="language-content" data-language-content="arabic" dir="auto"><a href="{{ url_for('article', article_id=news[0].id) }}">{{ news[0].title }}</a></h3>
+                            <div class="story-title language-content" data-language-content="easy-dutch" dir="auto" hidden><a href="{{ url_for('article', article_id=news[0].id) }}">{{ news[0].easy_dutch_title }}</a></div>
+                            {% if news[0].translation_notice %}<p class="translation-notice">{{ news[0].translation_notice }}</p>{% endif %}
+                            <p class="card-summary language-content" data-language-content="arabic" dir="auto">{{ news[0].summary }}</p>
+                            {{ story_actions(news[0]) }}
+                        </div>
+                    </article>
+
+                    {% set editorial_slugs = categories.keys() %}
+                    <section class="editorial-sections" aria-labelledby="editorialSectionsTitle">
+                        <div class="subsection-heading">
+                            <h2 id="editorialSectionsTitle">مختارات حسب التصنيف</h2>
+                            <span>نظرة سريعة على أبرز الأقسام</span>
+                        </div>
+                        <div class="editorial-sections-grid">
+                            {% for section_slug in editorial_slugs %}
+                                {% set section_items = (all_news|default(news, true))|selectattr('slug', 'equalto', section_slug)|list %}
+                                {% if section_items %}
+                                    {% set section_item = section_items[0] %}
+                                    <article class="editorial-section-item" style="--accent: {{ section_item.accent }}">
+                                        <div class="editorial-section-label">
+                                            <span>{{ categories.get(section_slug, section_item.category) }}</span>
+                                            <b aria-hidden="true">01</b>
+                                        </div>
+                                        <h3 dir="auto"><a href="{{ url_for('article', article_id=section_item.id) }}">{{ section_item.title }}</a></h3>
+                                        <p>{{ section_item.summary }}</p>
+                                        <a class="section-more" href="{{ url_for('category', slug=section_slug) }}">كل أخبار {{ categories.get(section_slug, section_item.category) }} <span aria-hidden="true">←</span></a>
+                                    </article>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </section>
                 </div>
 
+                <div class="secondary-column">
+                    {% for item in news[1:4] %}
+                    <article class="secondary-story news-card" data-source="{{ item.source }}" data-article-id="{{ item.id }}" data-alert-topics="{{ item.alert_topics|join(',') }}" style="--accent: {{ item.accent }}">
+                        {{ story_image(item) }}
+                        <div class="story-body">
+                            {{ story_meta(item) }}
+                            {{ language_controls(item) }}
+                            <h3 class="language-content" data-language-content="arabic" dir="auto"><a href="{{ url_for('article', article_id=item.id) }}">{{ item.title }}</a></h3>
+                            <div class="story-title language-content" data-language-content="easy-dutch" dir="auto" hidden><a href="{{ url_for('article', article_id=item.id) }}">{{ item.easy_dutch_title }}</a></div>
+                            {% if item.translation_notice %}<p class="translation-notice">{{ item.translation_notice }}</p>{% endif %}
+                            <p class="card-summary language-content" data-language-content="arabic" dir="auto">{{ item.summary }}</p>
+                            {{ story_actions(item) }}
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
 
-                <span class="article-count">
-                    {{ news|length }} من {{ total_news }} خبرًا
-                </span>
-
-            </div>
-
-
-            {% if news_status %}
-            <p class="news-status" role="status">{{ news_status }}</p>
+                <aside class="most-read" aria-labelledby="mostReadTitle">
+                    <div class="most-read-heading"><p class="eyebrow">قراءة ومتابعة</p><h2 id="mostReadTitle">الأكثر قراءة</h2></div>
+                    <ol>
+                        {% for item in news[4:14] %}
+                        <li class="most-read-item">
+                            <span>{{ '%02d'|format(loop.index) }}</span>
+                            <a href="{{ url_for('article', article_id=item.id) }}">{{ item.title }}</a>
+                        </li>
+                        {% endfor %}
+                    </ol>
+                </aside>
+            </section>
             {% endif %}
 
-            <div class="news-tools">
-                <input
-                    type="text"
-                    id="newsSearch"
-                    placeholder="ابحث عن خبر..."
-                    aria-label="ابحث عن خبر"
-                >
-            </div>
-
-            <div class="source-filters" aria-label="فلترة حسب المصدر">
-                <button class="source-btn active" data-source="all" type="button">الكل</button>
-                <button class="source-btn" data-source="NL Times" type="button">NL Times</button>
-                <button class="source-btn" data-source="Rijksoverheid" type="button">Rijksoverheid</button>
-                <button class="source-btn" data-source="DutchNews" type="button">DutchNews</button>
-                <button class="source-btn" data-source="DW Germany" type="button">DW Germany</button>
-                <button class="source-btn" data-source="BBC Europe" type="button">BBC Europe</button>
-            </div>
-
-            <div class="news-grid">
-
-                {% for item in news %}
-
-                <article
-                    class="news-card"
-                    data-source="{{ item.source }}"
-                    data-article-id="{{ item.id }}"
-                    data-alert-topics="{{ item.alert_topics|join(',') }}"
-                    style="--accent: {{ item.accent }}"
-                >
-
-                    {% if item.image %}
-                    <div class="news-image card-image">
-                        <img src="{{ item.image }}" alt="" width="640" height="360"
-                             loading="lazy" decoding="async" referrerpolicy="no-referrer">
-                    </div>
-                    {% else %}
-                    <div class="news-image news-image-fallback" aria-hidden="true">
-                        <img src="{{ url_for('static', filename='brand/nl-bilarabi-icon.png') }}" alt="" width="72" height="72">
-                        <span>{{ item.source }}</span>
-                    </div>
-                    {% endif %}
-
-                    <div class="card-body">
-                        <div class="card-topline">
-                            <a class="source-badge" href="{{ item.link }}" target="_blank" rel="noopener noreferrer">
-                                <span>المصدر</span> <bdi>{{ item.source }}</bdi>
-                            </a>
-                            <span class="card-number" aria-hidden="true">{{ '%02d'|format(loop.index) }}</span>
+            <section class="latest-section" aria-labelledby="latestGridTitle">
+                <div class="subsection-heading"><h2 id="latestGridTitle">تغطية اليوم</h2><span>أخبار ومتابعات من مصادر متعددة</span></div>
+            {% if news %}
+            <section class="media-rail" aria-labelledby="mediaRailTitle">
+                <div class="media-rail-heading">
+                    <span class="media-rail-marker" aria-hidden="true"></span>
+                    <h2 id="mediaRailTitle">من أخبار اليوم</h2>
+                    <span class="media-rail-note">مختارات من التغطية اليومية</span>
+                </div>
+                <div class="media-rail-track">
+                    {% for item in news[:8] %}
+                    <article class="media-rail-item">
+                        <a class="media-rail-image" href="{{ url_for('article', article_id=item.id) }}">
+                            {% if item.image %}
+                            <img src="{{ image_url(item.image) }}" alt="{{ item.title }}" width="320" height="400" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+                            {% else %}
+                            <span class="media-rail-fallback" aria-hidden="true">
+                                <img src="{{ url_for('static', filename='brand/nl-bilarabi-icon.png') }}" alt="" width="64" height="64">
+                            </span>
+                            {% endif %}
+                        </a>
+                        <h3><a href="{{ url_for('article', article_id=item.id) }}">{{ item.title }}</a></h3>
+                    </article>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+                <div class="news-grid">
+                    {% for item in news[4:] %}
+                    <article class="news-card latest-story" data-source="{{ item.source }}" data-article-id="{{ item.id }}" data-alert-topics="{{ item.alert_topics|join(',') }}" style="--accent: {{ item.accent }}">
+                        {{ story_image(item) }}
+                        <div class="card-body">
+                            {{ story_meta(item) }}
+                            {{ language_controls(item) }}
+                            <h3 class="language-content" data-language-content="arabic" dir="auto"><a href="{{ url_for('article', article_id=item.id) }}">{{ item.title }}</a></h3>
+                            <div class="story-title language-content" data-language-content="easy-dutch" dir="auto" hidden><a href="{{ url_for('article', article_id=item.id) }}">{{ item.easy_dutch_title }}</a></div>
+                            {% if item.translation_notice %}<p class="translation-notice">{{ item.translation_notice }}</p>{% endif %}
+                            <p class="card-summary language-content" data-language-content="arabic" dir="auto">{{ item.summary }}</p>
+                            {{ story_actions(item) }}
                         </div>
-                        <p class="card-date">{{ item.date }}</p>
-                        {% if item.alert_topics %}<span class="alert-tag">تنبيه مهم</span>{% endif %}
-                        <div class="card-language-controls"{% if not item.has_original_variant %} hidden{% endif %}>
-                            <button class="language-button active" type="button" data-language="arabic">العربية</button>
-                            <button class="language-button" type="button" data-language="original">{{ item.source_language|upper }} الأصلية</button>
-                        </div>
-                        <h3 class="language-content" data-language-content="arabic" dir="auto">
-                            <a href="{{ url_for('article', article_id=item.id) }}">{{ item.title }}</a>
-                        </h3>
-                        {% if item.has_original_variant %}
-                        <h3 class="language-content" data-language-content="original" dir="auto" hidden>
-                            <a href="{{ url_for('article', article_id=item.id) }}">{{ item.original_title }}</a>
-                        </h3>
-                        {% endif %}
-                        {% if item.translation_notice %}
-                        <p class="translation-notice">{{ item.translation_notice }}</p>
-                        {% endif %}
-                        <p class="card-summary language-content" data-language-content="arabic" dir="auto">{{ item.summary }}</p>
-                        {% if item.has_original_variant %}
-                        <p class="card-summary language-content" data-language-content="original" dir="auto" hidden>{{ item.original_summary|truncate(320, True, '…') }}</p>
-                        {% endif %}
-                        <div class="card-footer">
-                            <a class="original-link" href="{{ item.link }}" target="_blank" rel="noopener noreferrer">
-                                الخبر الأصلي <span aria-hidden="true">↗</span>
-                            </a>
-                            <a class="read-link" href="{{ url_for('article', article_id=item.id) }}">
-                                اقرأ المزيد <b aria-hidden="true">←</b>
-                            </a>
-                        </div>
-                        <div class="card-actions" aria-label="خيارات الخبر">
-                            <button class="icon-action save-button" type="button" data-save-article="{{ item.id }}" aria-pressed="false">حفظ</button>
-                            <button class="icon-action share-button" type="button" data-share-title="{{ item.title }}" data-share-url="{{ url_for('article', article_id=item.id, _external=True) }}">مشاركة</button>
-                        </div>
-                    </div>
-
-                </article>
-
-                {% endfor %}
-
-            </div>
+                    </article>
+                    {% endfor %}
+                </div>
+            </section>
 
             {% if total_news > news|length %}
-            <div class="archive-cta">
-                <p>تُعرض أحدث 9 أخبار هنا لتبقى الصفحة سريعة وواضحة.</p>
-                <a class="secondary-button" href="{{ url_for('archive') }}">عرض الأرشيف <span aria-hidden="true">←</span></a>
-            </div>
+            <div class="archive-cta"><p>تُعرض أحدث الأخبار هنا، وتجد بقية التغطية في الأرشيف.</p><a class="secondary-button" href="{{ url_for('archive') }}">عرض الأرشيف <span aria-hidden="true">←</span></a></div>
             {% endif %}
-
-        </section>
-
-
-
-        <!-- ABOUT -->
-
-        <section
-            class="container"
-            id="about"
-        >
-
-            <div class="section-heading">
-
-                <div>
-
-                    <p class="eyebrow">
-                        عن الموقع
-                    </p>
-
-                    <h2>
-                        NL بالعربي
-                    </h2>
-
-                </div>
-
-            </div>
-
-
-            <p class="hero-intro">
-
-                منصة عربية تهدف إلى تسهيل متابعة
-                أهم الأخبار والتحديثات المتعلقة
-                بالحياة في هولندا، مع توفير رابط
-                المصدر الأصلي لكل خبر.
-
-            </p>
-
         </section>
 
 

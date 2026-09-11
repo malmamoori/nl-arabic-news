@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+    <a class="skip-link" href="#main-content">تخطى إلى المحتوى</a>
     <header class="site-header">
         <div class="container header-inner">
             {% include '_logo.html' %}
@@ -27,7 +28,7 @@
         </div>
     </header>
 
-    <main class="container article-page">
+    <main class="container article-page" id="main-content">
         <a class="back-link" href="{{ url_for('home') }}">→ العودة إلى الأخبار</a>
         <article class="article-content" data-article-id="{{ article.id }}" style="--accent: {{ article.accent }}">
             <div class="article-meta">
@@ -36,21 +37,24 @@
                 </a>
                 <span>{{ article.date }}</span>
             </div>
-            <div class="article-language-controls"{% if not article.has_original_variant %} hidden{% endif %}>
+            <div class="article-language-controls"{% if not article.has_original_variant and not article.has_easy_dutch_variant %} hidden{% endif %}>
                 <span>اللغة:</span>
                 <button class="language-button active" type="button" data-language="arabic">العربية</button>
                 <button class="language-button" type="button" data-language="original">{{ article.source_language|upper }} الأصلية</button>
+                <button class="language-button" type="button" data-language="easy-dutch">Nederlands: makkelijke taal</button>
             </div>
             <h1 class="language-content" data-language-content="arabic" dir="auto">{{ article.title }}</h1>
             {% if article.has_original_variant %}<h1 class="language-content" data-language-content="original" dir="auto" hidden>{{ article.original_title }}</h1>{% endif %}
+            <h1 class="language-content" data-language-content="easy-dutch" dir="auto" hidden>{{ article.easy_dutch_title }}</h1>
             {% if article.translation_notice %}
             <p class="translation-notice">{{ article.translation_notice }}</p>
             {% endif %}
             <p class="article-lead language-content" data-language-content="arabic" dir="auto">{{ article.body }}</p>
             {% if article.has_original_variant %}<p class="article-lead language-content" data-language-content="original" dir="auto" hidden>{{ article.original_summary or 'لم يوفّر المصدر ملخصًا بلغته الأصلية.' }}</p>{% endif %}
+            <p class="article-lead language-content" data-language-content="easy-dutch" dir="auto" hidden>{{ article.easy_dutch_summary or 'Deze samenvatting is niet beschikbaar.' }}</p>
             {% if article.image %}
             <div class="news-image article-image">
-                <img src="{{ article.image }}" alt="" width="960" height="540"
+                <img src="{{ image_url(article.image) }}" alt="{{ article.title }}" width="960" height="540"
                      decoding="async" referrerpolicy="no-referrer">
             </div>
             {% endif %}

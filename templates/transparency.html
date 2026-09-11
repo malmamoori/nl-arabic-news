@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+    <a class="skip-link" href="#main-content">تخطى إلى المحتوى</a>
     <header class="site-header">
         <div class="container header-inner">
             {% include '_logo.html' %}
@@ -26,7 +27,7 @@
         </div>
     </header>
 
-    <main class="container transparency-page">
+    <main class="container transparency-page" id="main-content">
         <div class="page-heading">
             <p class="eyebrow">ثقتك أولًا</p>
             <h1>الشفافية والتواصل</h1>
